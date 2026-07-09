@@ -81,6 +81,13 @@ export function buildDepthSessionAttempts() {
     }
   });
 
+  const bareOffAttempt = () => ({
+    label: 'minimal - Depth aus - keine Zusatzfeatures',
+    depthMode: 'off',
+    referenceSpaceType: 'local',
+    sessionInit: undefined
+  });
+
   return [
     depthAttempt(
       'local-floor - GPU Depth - luminance-alpha/float32',
@@ -111,7 +118,8 @@ export function buildDepthSessionAttempts() {
       ['float32', 'luminance-alpha']
     ),
     offAttempt('local-floor - Depth aus', 'local-floor'),
-    offAttempt('local - Depth aus', 'local')
+    offAttempt('local - Depth aus', 'local'),
+    bareOffAttempt()
   ];
 }
 
