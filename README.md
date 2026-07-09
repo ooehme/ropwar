@@ -1,4 +1,4 @@
-# Windrad XR v20 – WebXR Depth Pflichtmodus
+# Windrad XR v21 – WebXR Depth Pflichtmodus
 
 Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 
@@ -9,6 +9,10 @@ Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 - Rotordurchmesser: `170 m`
 
 Diese Version hat keinen Kamera-/Sensor-Fallback. WebXR `immersive-ar`, GPS, Initialkompass und WebXR Depth Sensing werden verwendet.
+
+## Änderung in v21
+
+Vor dem Setzen des XR-Ankers lädt die App echte Geländehöhen für Kamera- und Windradstandort über die Open-Meteo Elevation API. Die Werte basieren auf Copernicus DEM GLO-90. Das Windrad bleibt ausgeblendet, bis diese Höhendaten vorliegen; die Turmbasis wird um die Differenz `Windrad-Geländehöhe - Kamera-Geländehöhe` im lokalen XR-Raum verschoben. Quelle/Attribution: [Open-Meteo Elevation API](https://open-meteo.com/en/docs/elevation-api), Copernicus DEM GLO-90.
 
 ## Änderung in v20
 
@@ -73,7 +77,7 @@ Diese URLs müssen JavaScript/JSON liefern:
 
 ## Handy-Test
 
-1. Öffnen mit `https://deine-domain/?v=20`
+1. Öffnen mit `https://deine-domain/?v=21`
 2. **XR-Anker → Cache zurücksetzen**
 3. neu laden
 4. AR starten

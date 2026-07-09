@@ -6,6 +6,7 @@ import {
 } from './config.js';
 import { dom } from './dom.js';
 import { state } from './state.js';
+import { requestElevationForStartLocation } from './elevation.js';
 import { bearingDegrees, distanceBetween, localMetersFromUserToTarget } from './geo.js';
 import { readableGeoError } from './utils/errors.js';
 import { formatMeters } from './utils/math.js';
@@ -162,6 +163,7 @@ export function acceptStartLocation(location) {
   const local = localMetersFromUserToTarget(location.latitude, location.longitude);
   state.currentDistance = Math.hypot(local.east, local.north);
   state.currentBearing = bearingDegrees(local.east, local.north);
+  requestElevationForStartLocation(location);
 
   setStatus(dom.gpsStatus, location.accuracy <= GPS_IDEAL_ACCURACY_METERS
     ? `GPS: fixiert (${formatMeters(location.accuracy)})`

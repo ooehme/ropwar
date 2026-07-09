@@ -10,7 +10,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/styles.css?v=20">
+  <link rel="stylesheet" href="/styles.css?v=21">
 </head>
 <body>
   <main id="app">
@@ -58,7 +58,7 @@
           <button id="testMarkerButton" type="button" disabled>Testmarker vor Kamera</button>
           <button id="clearCacheButton" type="button">Cache zurücksetzen</button>
         </div>
-        <p class="hint">Diese Version hat keinen Kamera-/Sensor-Fallback. Das Windrad wird nur mit WebXR immersive-ar gerendert. Die Zusatzknöpfe dienen zur Sichtprüfung und zur manuellen Korrektur der Geo-Ausrichtung. Die WebXR Depth API wird jetzt immer als Pflichtfunktion beim AR-Start angefordert; ohne Depth startet die AR-Session nicht.</p>
+        <p class="hint">Diese Version hat keinen Kamera-/Sensor-Fallback. Das Windrad wird nur mit WebXR immersive-ar gerendert. Die Zusatzknöpfe dienen zur Sichtprüfung und zur manuellen Korrektur der Geo-Ausrichtung. Die WebXR Depth API wird jetzt immer als Pflichtfunktion beim AR-Start angefordert; ohne Depth startet die AR-Session nicht. Höhendaten: Open-Meteo Elevation API auf Basis von Copernicus DEM GLO-90.</p>
       </details>
 
       <div id="messageLog"></div>
@@ -98,8 +98,8 @@
     window.towerBootLog('HTML-Bootstrap geladen. App-Modul wird nachgeladen.');
   </script>
   <script type="module">
-    window.towerBootLog('Import /app.js?v=20 gestartet.');
-    import('/app.js?v=20').then(function() {
+    window.towerBootLog('Import /app.js?v=21 gestartet.');
+    import('/app.js?v=21').then(function() {
       window.towerBootLog('App-Modul erfolgreich geladen.');
     }).catch(function(error) {
       window.towerBootLog('App-Modul Fehler: ' + (error && error.message ? error.message : error));

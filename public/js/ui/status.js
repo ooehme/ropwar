@@ -33,7 +33,7 @@ export function markClientBooted() {
     const pref = localStorage.getItem('towerxr-ui-hidden');
     if (pref === '1') setUiHidden(true);
   } catch (_) {}
-  logMessage(`App-JavaScript v20 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
+  logMessage(`App-JavaScript v21 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
 }
 
 export function updateMetrics() {

@@ -34,26 +34,26 @@ export function loadDepthRequestPreference() {
 
 export function setDepthRequestEnabled(enabled) {
   state.depthRequestEnabled = true;
-  logMessage('Depth API ist in v20 Pflicht und kann nicht deaktiviert werden.');
+  logMessage('Depth API ist in v21 Pflicht und kann nicht deaktiviert werden.');
   updateDepthStatus(true);
 }
 
 export function updateDepthStartToggleButton() {
-  // v20: kein UI-Toggle mehr. Depth ist Pflicht.
+  // v21: kein UI-Toggle mehr. Depth ist Pflicht.
 }
 
 export function setDepthOcclusionEnabled(enabled) {
   state.depthOcclusionEnabled = true;
-  logMessage('Tiefenmaske ist in v20 immer eingeschaltet und kann nicht deaktiviert werden.');
+  logMessage('Tiefenmaske ist in v21 immer eingeschaltet und kann nicht deaktiviert werden.');
   updateDepthStatus(true);
 }
 
 export function updateDepthToggleButtons() {
-  // v20: kein UI-Toggle mehr. Depth ist Pflicht.
+  // v21: kein UI-Toggle mehr. Depth ist Pflicht.
 }
 
 export function patchDepthOcclusionToggle() {
-  // v20: Three.js Depth-Sensing-Mesh bleibt immer aktiv.
+  // v21: Three.js Depth-Sensing-Mesh bleibt immer aktiv.
 }
 
 export function buildDepthSessionAttempts() {

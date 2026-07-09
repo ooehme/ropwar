@@ -90,7 +90,7 @@ export async function startWebXROnlyApp() {
   state.referenceSpaceType = 'local-floor';
   setStatus(dom.depthStatus, 'Depth: Pflicht angefragt', 'warn');
   if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: Pflicht, wartet';
-  logMessage('WebXR Depth Sensing ist in v20 weiterhin Pflicht. Es werden GPU- und CPU-Depth-Konfigurationen versucht. Ohne freigegebene Depth-Session startet diese Version nicht.');
+  logMessage('WebXR Depth Sensing ist in v21 weiterhin Pflicht. Es werden GPU- und CPU-Depth-Konfigurationen versucht. Ohne freigegebene Depth-Session startet diese Version nicht.');
 
   let session = null;
   let selectedAttempt = null;
@@ -120,7 +120,7 @@ export async function startWebXROnlyApp() {
   } catch (error) {
     const reason = readableXRError(error);
     logMessage(`XR-Session wurde erstellt, aber das Renderer-Setup ist fehlgeschlagen: ${reason}.`);
-    logMessage('Depth API ist in v20 Pflicht. Wenn das Renderer-Setup scheitert, liefert dieser Browser/Gerät keine stabil nutzbare WebXR-Depth-Session.');
+    logMessage('Depth API ist in v21 Pflicht. Wenn das Renderer-Setup scheitert, liefert dieser Browser/Gerät keine stabil nutzbare WebXR-Depth-Session.');
     try {
       await session.end();
     } catch (_) {}
@@ -148,6 +148,12 @@ export function resetStartupState() {
   state.startHeading = null;
   state.currentDistance = null;
   state.currentBearing = null;
+  state.elevationPending = false;
+  state.elevationReady = false;
+  state.elevationError = null;
+  state.cameraGroundElevationMeters = null;
+  state.targetGroundElevationMeters = null;
+  state.towerVerticalOffsetMeters = null;
   state.gpsSamples = [];
   state.lastCompassTimestamp = 0;
   state.depthFeatureGranted = false;
@@ -287,7 +293,7 @@ export function renderXRFrame(time, xrFrame) {
   const poseUsable = updatePoseMetric(xrCamera);
   if (poseUsable) state.xrPoseSeen = true;
 
-  if (!state.anchorReady && !state.anchorRequested && state.startLocation && state.startHeading != null && state.xrPoseSeen) {
+  if (!state.anchorReady && !state.anchorRequested && state.startLocation && state.startHeading != null && state.elevationReady && state.xrPoseSeen) {
     state.anchorRequested = true;
     placeTowerFromGeoAndCurrentXRPose(xrCamera);
   }

@@ -1,4 +1,4 @@
-export const APP_VERSION = 20;
+export const APP_VERSION = 21;
 
 export const TARGET = Object.freeze({
   latitude: 50.8323794,
@@ -21,4 +21,7 @@ export const COMPASS_SAMPLE_TIMEOUT_MS = 12000;
 export const COMPASS_MAX_RATE_DEGREES_PER_SECOND = 240;
 export const COMPASS_ALPHA = 0.18;
 export const XR_SUPPORT_CHECK_TIMEOUT_MS = 6000;
-export const THREE_MODULE_URL = '/vendor/three.module.min.js?v=20';
+export const ELEVATION_API_URL = 'https://api.open-meteo.com/v1/elevation';
+export const ELEVATION_REQUEST_TIMEOUT_MS = 8000;
+export const ESTIMATED_CAMERA_HEIGHT_METERS = 1.6;
+export const THREE_MODULE_URL = `/vendor/three.module.min.js?v=${APP_VERSION}`;

@@ -1,4 +1,4 @@
-import { TARGET } from './config.js';
+import { ESTIMATED_CAMERA_HEIGHT_METERS, TARGET } from './config.js';
 import { dom } from './dom.js';
 import { state } from './state.js';
 import { getThree } from './three-context.js';
@@ -81,6 +81,12 @@ export function placeTowerFromGeoAndCurrentXRPose(xrCamera) {
     return;
   }
 
+  if (!state.elevationReady || !Number.isFinite(state.towerVerticalOffsetMeters)) {
+    state.anchorRequested = false;
+    setStatus(dom.anchorStatus, 'Anker: wartet auf Höhendaten', 'warn');
+    return;
+  }
+
   forward.normalize();
   const localCameraYaw = radiansToDegrees(Math.atan2(forward.x, -forward.z));
   const relativeBearing = angleDelta(state.currentBearing, state.startHeading);
@@ -92,11 +98,17 @@ export function placeTowerFromGeoAndCurrentXRPose(xrCamera) {
 
 export function placeTowerAtYaw(yawDegrees, message) {
   if (!state.lastCameraPosition || state.currentDistance == null || !state.tower) return;
+  if (!state.elevationReady || !Number.isFinite(state.towerVerticalOffsetMeters)) {
+    setStatus(dom.anchorStatus, 'Anker: wartet auf Höhendaten', 'warn');
+    return;
+  }
+
   const yawRadians = degreesToRadians(yawDegrees);
   const x = state.lastCameraPosition.x + Math.sin(yawRadians) * state.currentDistance;
+  const y = localGroundYAtCamera() + state.towerVerticalOffsetMeters;
   const z = state.lastCameraPosition.z - Math.cos(yawRadians) * state.currentDistance;
 
-  state.tower.position.set(x, 0, z);
+  state.tower.position.set(x, y, z);
   state.tower.rotation.y = -yawRadians;
   state.tower.visible = true;
   state.towerYaw = normalizeDegrees(yawDegrees);
@@ -106,7 +118,8 @@ export function placeTowerAtYaw(yawDegrees, message) {
   dom.rotateLeftButton.disabled = false;
   dom.rotateRightButton.disabled = false;
 
-  const far = Math.max(1000, state.currentDistance + TARGET.heightMeters + 1000);
+  const verticalSpan = Math.abs(y - state.lastCameraPosition.y) + TARGET.heightMeters;
+  const far = Math.max(1000, Math.hypot(state.currentDistance, verticalSpan) + 1000);
   state.camera.far = far;
   state.camera.updateProjectionMatrix();
   state.xrSession?.updateRenderState({ depthNear: 0.05, depthFar: far });
@@ -156,4 +169,9 @@ export function horizontalForwardFromQuaternion(quaternion) {
   forward.y = 0;
   if (forward.lengthSq() < 0.0001) return null;
   return forward.normalize();
+}
+
+function localGroundYAtCamera() {
+  if (state.referenceSpaceType === 'local-floor') return 0;
+  return state.lastCameraPosition.y - ESTIMATED_CAMERA_HEIGHT_METERS;
 }
