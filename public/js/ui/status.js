@@ -77,8 +77,14 @@ export function setStatus(element, text, status) {
   element.classList.add(status);
 }
 
-export function setCapability(name, status) {
+/*export function setCapability(name, status) {
   if (!Object.hasOwn(state.capabilities, name)) return;
+  state.capabilities[name] = status;
+  updateCapabilityIcons();
+}*/
+
+export function setCapability(name, status) {
+  if (!Object.prototype.hasOwnProperty.call(state.capabilities, name)) return;
   state.capabilities[name] = status;
   updateCapabilityIcons();
 }
