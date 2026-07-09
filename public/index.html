@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#111827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tower XR">
+  <title>Tower XR</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/styles.css?v=20">
+</head>
+<body>
+  <main id="app">
+    <canvas id="xrCanvas"></canvas>
+
+    <section id="overlayRoot">
+      <section id="hud" aria-live="polite">
+      <div class="title-row">
+        <div>
+          <h1>Tower XR</h1>
+          <p>Nur WebXR immersive-ar · Ziel: 50.8323794, 12.6992181 · 200 m</p>
+        </div>
+        <div class="button-row">
+          <button id="startButton" type="button" disabled>AR starten</button>
+          <button id="stopButton" type="button" disabled>Stop</button>
+          <button id="toggleUiButton" type="button" class="secondary-button">Infos ausblenden</button>
+        </div>
+      </div>
+
+      <div id="statusGrid">
+        <div class="status-card warn" id="xrStatus">WebXR: prüft</div>
+        <div class="status-card warn" id="gpsStatus">GPS: wartet</div>
+        <div class="status-card warn" id="compassStatus">Kompass: wartet</div>
+        <div class="status-card warn" id="anchorStatus">Anker: wartet</div>
+        <div class="status-card warn" id="depthStatus">Depth: wartet</div>
+      </div>
+
+      <div id="metrics">
+        <span id="distanceMetric">Entfernung: –</span>
+        <span id="bearingMetric">Peilung: –</span>
+        <span id="accuracyMetric">GPS-Genauigkeit: –</span>
+        <span id="headingMetric">Kamera-Kompass: –</span>
+        <span id="poseMetric">XR-Pose: –</span>
+        <span id="visibilityMetric">Sicht: –</span>
+        <span id="depthMetric">Tiefenmaske: –</span>
+      </div>
+
+      <details id="controls">
+        <summary>XR-Anker</summary>
+        <div class="control-row">
+          <button id="resetAnchorButton" type="button" disabled>Anker neu setzen</button>
+          <button id="calibrateAnchorButton" type="button" disabled>Ich schaue zum Turm</button>
+          <button id="rotateLeftButton" type="button" disabled>Turm 15° links</button>
+          <button id="rotateRightButton" type="button" disabled>Turm 15° rechts</button>
+          <button id="testMarkerButton" type="button" disabled>Testmarker vor Kamera</button>
+          <button id="clearCacheButton" type="button">Cache zurücksetzen</button>
+        </div>
+        <p class="hint">Diese Version hat keinen Kamera-/Sensor-Fallback. Der Turm wird nur mit WebXR immersive-ar gerendert. Die Zusatzknöpfe dienen zur Sichtprüfung und zur manuellen Korrektur der Geo-Ausrichtung. Die WebXR Depth API wird jetzt immer als Pflichtfunktion beim AR-Start angefordert; ohne Depth startet die AR-Session nicht.</p>
+      </details>
+
+      <div id="messageLog"></div>
+      </section>
+
+      <div id="miniHud" hidden>
+        <button id="showUiButton" type="button">Infos einblenden</button>
+        <button id="miniStopButton" type="button" disabled>Stop</button>
+      </div>
+    </section>
+  </main>
+
+  <noscript>Diese App benötigt JavaScript.</noscript>
+  <script>
+    window.towerBootLog = function(message) {
+      var log = document.querySelector('#messageLog');
+      var xr = document.querySelector('#xrStatus');
+      if (!log) return;
+      var time = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      var line = document.createElement('div');
+      line.textContent = time + ' · ' + message;
+      log.prepend(line);
+      while (log.children.length > 9) log.removeChild(log.lastChild);
+      if (xr && message.indexOf('Fehler') !== -1) {
+        xr.textContent = 'WebXR: App-Fehler';
+        xr.classList.remove('ok', 'warn');
+        xr.classList.add('bad');
+      }
+    };
+    window.addEventListener('error', function(event) {
+      window.towerBootLog('Fehler vor App-Start: ' + (event.message || event.type));
+    }, true);
+    window.addEventListener('unhandledrejection', function(event) {
+      var reason = event.reason && event.reason.message ? event.reason.message : String(event.reason || 'unbekannt');
+      window.towerBootLog('Promise-Fehler vor App-Start: ' + reason);
+    });
+    window.towerBootLog('HTML-Bootstrap geladen. App-Modul wird nachgeladen.');
+  </script>
+  <script type="module">
+    window.towerBootLog('Import /app.js?v=20 gestartet.');
+    import('/app.js?v=20').then(function() {
+      window.towerBootLog('App-Modul erfolgreich geladen.');
+    }).catch(function(error) {
+      window.towerBootLog('App-Modul Fehler: ' + (error && error.message ? error.message : error));
+      var btn = document.querySelector('#startButton');
+      if (btn) btn.disabled = true;
+    });
+  </script>
+</body>
+</html>

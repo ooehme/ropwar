@@ -1,0 +1,29 @@
+{
+  "name": "ropwar",
+  "version": "1.0.17",
+  "description": "Mobile browser AR view for a 200 m virtual tower at a fixed GPS position.",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/service-worker.js",
+    "test": "npm run check"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ooehme/ropwar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ooehme/ropwar/issues"
+  },
+  "homepage": "https://github.com/ooehme/ropwar#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "three": "^0.185.1"
+  }
+}

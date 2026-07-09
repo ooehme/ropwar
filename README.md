@@ -1,0 +1,56 @@
+# Tower XR v20 – WebXR Depth Pflichtmodus
+
+Mobile WebXR-App für einen virtuellen 200-m-Turm am realen Standort:
+
+- Latitude: `50.8323794`
+- Longitude: `12.6992181`
+- Höhe: `200 m`
+
+Diese Version hat keinen Kamera-/Sensor-Fallback. WebXR `immersive-ar`, GPS, Initialkompass und WebXR Depth Sensing werden verwendet.
+
+## Änderung in v20
+
+Die Tiefenmaske ist nicht togglebar und bleibt Pflicht. v20 versucht aber nicht mehr nur GPU-Depth. Die App versucht mehrere WebXR-Depth-Konfigurationen:
+
+1. `local-floor`, GPU bevorzugt, CPU erlaubt
+2. `local-floor`, CPU bevorzugt, GPU erlaubt
+3. `local`, GPU bevorzugt, CPU erlaubt
+4. `local`, CPU bevorzugt, GPU erlaubt
+
+Wenn GPU-Depth geliefert wird, nutzt Three.js die GPU-Occlusion. Wenn nur CPU-Depth geliefert wird, nutzt die App eine approximative Segment-Maske: Turmsegmente werden anhand von `XRCPUDepthInformation.getDepthInMeters()` ein- oder ausgeblendet. Das ist gröber als echte Pixel-Occlusion, kann aber funktionieren, wenn der Browser keine WebGL-Depth-Texture freigibt.
+
+Wenn keine Konfiguration startet, wird AR nicht gestartet und die App meldet eindeutig, dass keine startbare Depth-Session verfügbar ist.
+
+## Plesk-Setup
+
+1. ZIP entpacken und den kompletten Ordnerinhalt in den Plesk-Anwendungsstamm hochladen.
+2. In Plesk unter **Node.js** die App aktivieren.
+3. **Application root**: Projektordner, z. B. `/ropwar.oliveroehme.de/tower-ar`
+4. **Document root**: `public`
+5. **Application startup file**: `server.js`
+6. **NPM install** ausführen.
+7. Node-App neu starten.
+8. Domain per HTTPS öffnen.
+
+## Schnelltest
+
+Diese URLs müssen JavaScript/JSON liefern:
+
+- `/health`
+- `/app.js`
+- `/three.module.js`
+- `/three.core.js`
+- `/vendor/three.module.js`
+- `/vendor/three.core.js`
+
+## Handy-Test
+
+1. Öffnen mit `https://deine-domain/?v=20`
+2. **XR-Anker → Cache zurücksetzen**
+3. neu laden
+4. AR starten
+5. Im Log auf `Depth-Session-Versuch`, `XR-Features`, `DepthUsage` und `Tiefenmaske` achten
+
+## Einschränkung
+
+Die Tiefenmaske ist WebXR/ARCore-Depth-Occlusion, keine semantische Maske. Glas, Fliegengitter, feine Äste, Himmel, Gegenlicht und entfernte Kanten können unvollständig oder gar nicht maskieren. CPU-Depth-Occlusion ist nur segmentweise approximiert, nicht pixelgenau.

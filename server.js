@@ -1,0 +1,102 @@
+import express from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const port = process.env.PORT || 3000;
+const publicDir = path.join(__dirname, 'public');
+const vendorDir = path.join(publicDir, 'vendor');
+
+app.disable('x-powered-by');
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Permissions-Policy', [
+    'camera=(self)',
+    'geolocation=(self)',
+    'accelerometer=(self)',
+    'gyroscope=(self)',
+    'magnetometer=(self)',
+    'xr-spatial-tracking=(self)'
+  ].join(', '));
+  next();
+});
+
+app.get('/app.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(publicDir, 'app.js'));
+});
+
+app.get('/service-worker.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(publicDir, 'service-worker.js'));
+});
+
+
+app.get('/three.module.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(publicDir, 'three.module.js'), (error) => {
+    if (!error) return;
+    if (!res.headersSent) {
+      res.status(404).type('text/plain').send('public/three.module.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
+    }
+  });
+});
+
+app.get('/vendor/three.module.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(vendorDir, 'three.module.js'), (error) => {
+    if (!error) return;
+    if (!res.headersSent) {
+      res.status(404).type('text/plain').send('public/vendor/three.module.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
+    }
+  });
+});
+
+
+app.get('/three.core.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(publicDir, 'three.core.js'), (error) => {
+    if (!error) return;
+    if (!res.headersSent) {
+      res.status(404).type('text/plain').send('public/three.core.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
+    }
+  });
+});
+
+app.get('/vendor/three.core.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('application/javascript');
+  res.sendFile(path.join(vendorDir, 'three.core.js'), (error) => {
+    if (!error) return;
+    if (!res.headersSent) {
+      res.status(404).type('text/plain').send('public/vendor/three.core.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
+    }
+  });
+});
+
+app.use(express.static(publicDir, {
+  extensions: ['html'],
+  maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
+}));
+
+app.get('/health', (req, res) => {
+  res.json({ ok: true, app: 'tower-ar-plesk-app', version: 'v17' });
+});
+
+app.use((req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
+
+app.listen(port, () => {
+  console.log(`Tower AR app listening on port ${port}`);
+});
