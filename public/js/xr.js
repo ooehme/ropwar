@@ -84,6 +84,14 @@ export async function startWebXROnlyApp() {
     return;
   }
 
+  if (state.xrSupported === false) {
+  failStartup(
+    'WebXR: immersive-ar nicht verfügbar',
+    'Dieses Gerät oder dieser Browser meldet keine immersive-ar-Unterstützung. Depth ist nicht die Ursache; selbst eine minimale AR-Session kann nicht gestartet werden.'
+  );
+  return;
+}
+
   // Wichtig: Diese Aufrufe passieren synchron im Button-Klick, bevor das erste await kommt.
   // Browser dürfen WebXR- und Sensor-Prompts sonst wegen fehlender Nutzeraktivierung blockieren.
   startHighAccuracyLocationSampling();
