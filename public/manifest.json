@@ -1,7 +1,7 @@
 {
-  "name": "Tower XR",
-  "short_name": "Tower XR",
-  "description": "WebXR-only AR view for a 200 m virtual tower at a fixed GPS position.",
+  "name": "Windrad XR",
+  "short_name": "Windrad XR",
+  "description": "WebXR-only AR view for a 250 m wind turbine at a fixed GPS position.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

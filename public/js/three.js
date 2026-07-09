@@ -1,7 +1,7 @@
 import { THREE_MODULE_URL } from './config.js';
 import { dom } from './dom.js';
 import { state } from './state.js';
-import { buildTestMarker, buildTower } from './scene.js';
+import { addSceneLights, buildTestMarker, buildWindTurbineModel } from './scene.js';
 import { getThree, hasThreeModule, setThreeModule } from './three-context.js';
 import { patchDepthOcclusionToggle } from './depth.js';
 import { logMessage, resize, setStatus } from './ui/status.js';
@@ -64,9 +64,10 @@ export function initThree() {
 
   const scene = new THREE.Scene();
   scene.background = null;
+  addSceneLights(scene);
   const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 100000);
 
-  const tower = buildTower();
+  const tower = buildWindTurbineModel();
   tower.visible = false;
   scene.add(tower);
 

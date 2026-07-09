@@ -71,5 +71,5 @@ app.use((req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Tower AR app listening on port ${port}`);
+  console.log(`Windrad XR app listening on port ${port}`);
 });

@@ -13,19 +13,19 @@ export function resetAnchor() {
   state.manualYawOffset = 0;
   if (state.tower) state.tower.visible = false;
   setStatus(dom.anchorStatus, 'Anker: wird neu gesetzt', 'warn');
-  logMessage('XR-Anker zurückgesetzt. Die nächste gute GPS-/Kompass-/Pose-Kombination setzt den Turm neu.');
+  logMessage('XR-Anker zurückgesetzt. Die nächste gute GPS-/Kompass-/Pose-Kombination setzt das Windrad neu.');
 }
 
 export function calibrateAnchorToCurrentView() {
   if (!state.xrSession || !state.lastCameraPosition || !state.lastCameraQuaternion || state.currentDistance == null) return;
   const cameraYaw = yawFromQuaternion(state.lastCameraQuaternion);
   state.manualYawOffset = 0;
-  placeTowerAtYaw(cameraYaw, 'Manuelle Kalibrierung: aktuelle Blickrichtung als Turmrichtung gesetzt. Entfernung bleibt maßstabsgetreu.');
+  placeTowerAtYaw(cameraYaw, 'Manuelle Kalibrierung: aktuelle Blickrichtung als Windradrichtung gesetzt. Entfernung bleibt maßstabsgetreu.');
 }
 
 export function rotateTowerAnchor(deltaDegrees) {
   if (!state.anchorReady || state.towerYaw == null) return;
-  placeTowerAtYaw(state.towerYaw + deltaDegrees, `Manuelle Korrektur: Turm um ${Math.abs(deltaDegrees)}° ${deltaDegrees < 0 ? 'links' : 'rechts'} gedreht.`);
+  placeTowerAtYaw(state.towerYaw + deltaDegrees, `Manuelle Korrektur: Windrad um ${Math.abs(deltaDegrees)}° ${deltaDegrees < 0 ? 'links' : 'rechts'} gedreht.`);
 }
 
 export function placeTestMarkerInFront() {
@@ -87,7 +87,7 @@ export function placeTowerFromGeoAndCurrentXRPose(xrCamera) {
   const targetYaw = localCameraYaw + relativeBearing + state.manualYawOffset;
 
   logMessage(`Richtungsrechnung: Peilung ${Math.round(state.currentBearing)}° minus Kamera-Kompass ${Math.round(state.startHeading)}° = relativ ${Math.round(relativeBearing)}°. XR-Kamerayaw ${Math.round(normalizeDegrees(localCameraYaw))}°, Zielyaw ${Math.round(normalizeDegrees(targetYaw))}°.`);
-  placeTowerAtYaw(targetYaw, 'Turm wurde mit WebXR-Pose im lokalen SLAM/VIO-Raum fixiert. GPS/Kompass werden danach nicht mehr pro Frame auf die Darstellung angewendet.');
+  placeTowerAtYaw(targetYaw, 'Windrad wurde mit WebXR-Pose im lokalen SLAM/VIO-Raum fixiert. GPS/Kompass werden danach nicht mehr pro Frame auf die Darstellung angewendet.');
 }
 
 export function placeTowerAtYaw(yawDegrees, message) {
@@ -97,6 +97,7 @@ export function placeTowerAtYaw(yawDegrees, message) {
   const z = state.lastCameraPosition.z - Math.cos(yawRadians) * state.currentDistance;
 
   state.tower.position.set(x, 0, z);
+  state.tower.rotation.y = -yawRadians;
   state.tower.visible = true;
   state.towerYaw = normalizeDegrees(yawDegrees);
   state.anchorReady = true;
@@ -110,7 +111,7 @@ export function placeTowerAtYaw(yawDegrees, message) {
   state.camera.updateProjectionMatrix();
   state.xrSession?.updateRenderState({ depthNear: 0.05, depthFar: far });
 
-  setStatus(dom.anchorStatus, 'Anker: Turm im WebXR-Raum fixiert', 'ok');
+  setStatus(dom.anchorStatus, 'Anker: Windrad im WebXR-Raum fixiert', 'ok');
   logMessage(message);
   updateMetrics();
 }

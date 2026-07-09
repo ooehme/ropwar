@@ -11,7 +11,7 @@ import { logMessage, setStatus, updateMetrics } from './ui/status.js';
 export function startCompassSampling() {
   if (!('DeviceOrientationEvent' in window)) {
     setStatus(dom.compassStatus, 'Kompass: DeviceOrientation fehlt', 'bad');
-    logMessage('Kein DeviceOrientationEvent verfügbar. Ohne Initialkompass kann der geografische Turm nicht in den XR-Raum gedreht werden.');
+    logMessage('Kein DeviceOrientationEvent verfügbar. Ohne Initialkompass kann das geografische Windrad nicht in den XR-Raum gedreht werden.');
     return;
   }
 
@@ -43,7 +43,7 @@ export function startCompassSampling() {
   state.compassTimeoutId = window.setTimeout(() => {
     if (state.startHeading == null) {
       setStatus(dom.compassStatus, 'Kompass: keine absolute Richtung', 'bad');
-      logMessage('Kein verwertbarer Kompasswert empfangen. Prüfe Browser, Sensorberechtigungen, Standortdienste und Magnetometer. Turm bleibt ausgeblendet.');
+      logMessage('Kein verwertbarer Kompasswert empfangen. Prüfe Browser, Sensorberechtigungen, Standortdienste und Magnetometer. Windrad bleibt ausgeblendet.');
     }
   }, COMPASS_SAMPLE_TIMEOUT_MS);
 }

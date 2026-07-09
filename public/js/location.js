@@ -14,7 +14,7 @@ import { logMessage, setStatus, updateMetrics } from './ui/status.js';
 export function startHighAccuracyLocationSampling() {
   if (!navigator.geolocation) {
     setStatus(dom.gpsStatus, 'GPS: Geolocation API fehlt', 'bad');
-    logMessage('Keine Geolocation API verfügbar. Ohne echte Geräteposition wird kein Turm platziert.');
+    logMessage('Keine Geolocation API verfügbar. Ohne echte Geräteposition wird kein Windrad platziert.');
     return;
   }
 
@@ -69,7 +69,7 @@ export function startHighAccuracyLocationSampling() {
       acceptStartLocation(bestSample);
     } else if (!state.startLocation) {
       setStatus(dom.gpsStatus, 'GPS: kein ausreichend genauer Fix', 'bad');
-      logMessage(`Kein GPS-Fix unter ${GPS_MAX_START_ACCURACY_METERS} m innerhalb der Wartezeit. Turm bleibt ausgeblendet.`);
+      logMessage(`Kein GPS-Fix unter ${GPS_MAX_START_ACCURACY_METERS} m innerhalb der Wartezeit. Windrad bleibt ausgeblendet.`);
     }
   }, GPS_SAMPLE_TIMEOUT_MS + 1500);
 }
@@ -166,6 +166,6 @@ export function acceptStartLocation(location) {
   setStatus(dom.gpsStatus, location.accuracy <= GPS_IDEAL_ACCURACY_METERS
     ? `GPS: fixiert (${formatMeters(location.accuracy)})`
     : `GPS: fixiert, mäßig (${formatMeters(location.accuracy)})`, location.accuracy <= GPS_IDEAL_ACCURACY_METERS ? 'ok' : 'warn');
-  logMessage(`Startposition fixiert. Entfernung zum Turm: ${formatMeters(state.currentDistance)}, Peilung: ${Math.round(state.currentBearing)}°.`);
+  logMessage(`Startposition fixiert. Entfernung zum Windrad: ${formatMeters(state.currentDistance)}, Peilung: ${Math.round(state.currentBearing)}°.`);
   updateMetrics();
 }

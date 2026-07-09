@@ -3,7 +3,13 @@ export const APP_VERSION = 20;
 export const TARGET = Object.freeze({
   latitude: 50.8323794,
   longitude: 12.6992181,
-  heightMeters: 200
+  heightMeters: 250
+});
+
+export const TURBINE_OPTIONS = Object.freeze({
+  hubHeightM: 165,
+  rotorDiameterM: 170,
+  towerRadiusM: 4
 });
 
 export const EARTH_RADIUS_METERS = 6371008.8;

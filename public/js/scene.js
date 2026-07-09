@@ -1,85 +1,137 @@
-import { TARGET } from './config.js';
+import { TARGET, TURBINE_OPTIONS } from './config.js';
 import { state } from './state.js';
 import { getThree } from './three-context.js';
 import { roundRect } from './utils/math.js';
 
-export function buildTower() {
+export function addSceneLights(scene) {
+  const THREE = getThree();
+
+  const sun = new THREE.DirectionalLight(0xffffff, 1.35);
+  sun.position.set(80, 160, 120);
+  scene.add(sun);
+
+  const fill = new THREE.DirectionalLight(0xffffff, 0.55);
+  fill.position.set(-80, 90, -100);
+  scene.add(fill);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.82));
+}
+
+export function buildWindTurbineModel() {
   const THREE = getThree();
   const group = new THREE.Group();
-
   const cpuOcclusionObjects = [];
-  const radiusMeters = 10;
-  const segmentCount = 8;
-  const segmentHeight = TARGET.heightMeters / segmentCount;
-  const towerMaterial = new THREE.MeshBasicMaterial({
-    color: 0xff2d55,
-    transparent: true,
-    opacity: 0.92,
-    side: THREE.DoubleSide,
-    depthWrite: false
-  });
 
-  for (let i = 0; i < segmentCount; i += 1) {
-    const towerGeometry = new THREE.CylinderGeometry(radiusMeters, radiusMeters * 1.2, segmentHeight, 32, 1, true);
-    const towerMesh = new THREE.Mesh(towerGeometry, towerMaterial.clone());
-    towerMesh.position.y = i * segmentHeight + segmentHeight / 2;
-    towerMesh.userData.cpuDepthOcclusion = true;
-    cpuOcclusionObjects.push(towerMesh);
-    group.add(towerMesh);
+  const hubHeightM = TURBINE_OPTIONS.hubHeightM;
+  const rotorRadiusM = TURBINE_OPTIONS.rotorDiameterM / 2;
+  const towerRadiusM = TURBINE_OPTIONS.towerRadiusM;
+
+  const addOccludable = (object) => {
+    object.userData.cpuDepthOcclusion = true;
+    object.frustumCulled = false;
+    cpuOcclusionObjects.push(object);
+    group.add(object);
+    return object;
+  };
+
+  addOccludable(new THREE.Mesh(
+    new THREE.CylinderGeometry(8, 8, 2, 24),
+    new THREE.MeshBasicMaterial({ color: 0x0f766e })
+  )).position.y = 1;
+
+  addOccludable(new THREE.Mesh(
+    new THREE.CylinderGeometry(towerRadiusM * 0.62, towerRadiusM, hubHeightM, 18),
+    new THREE.MeshStandardMaterial({ color: 0xbfc7d1, roughness: 0.7, metalness: 0.12 })
+  )).position.y = hubHeightM / 2;
+
+  const nacelleLengthM = 18;
+  const nacelleRearOverhangM = 5;
+  const nacelleFrontOverhangM = nacelleLengthM - nacelleRearOverhangM;
+  const nacelleCenterZ = (nacelleFrontOverhangM - nacelleRearOverhangM) / 2;
+  const hubZ = nacelleFrontOverhangM + 3;
+
+  const nacelle = addOccludable(new THREE.Mesh(
+    new THREE.BoxGeometry(6, 6, nacelleLengthM),
+    new THREE.MeshStandardMaterial({ color: 0xdbe2ea, roughness: 0.65, metalness: 0.12 })
+  ));
+  nacelle.position.set(0, hubHeightM, nacelleCenterZ);
+
+  const hub = addOccludable(new THREE.Mesh(
+    new THREE.SphereGeometry(3.6, 20, 14),
+    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.08 })
+  ));
+  hub.position.set(0, hubHeightM, hubZ);
+
+  const rotorGroup = new THREE.Group();
+  rotorGroup.position.set(0, hubHeightM, hubZ);
+  rotorGroup.rotation.z = Math.PI / 10;
+  rotorGroup.frustumCulled = false;
+  group.add(rotorGroup);
+  state.turbineRotor = rotorGroup;
+  state.turbineRotorBaseRotation = rotorGroup.rotation.z;
+
+  for (let i = 0; i < 3; i += 1) {
+    const bladeGroup = new THREE.Group();
+    const blade = createBlade(rotorRadiusM, 4.2, 1.0, 0.8);
+    blade.userData.cpuDepthOcclusion = true;
+    blade.frustumCulled = false;
+    cpuOcclusionObjects.push(blade);
+    bladeGroup.add(blade);
+    bladeGroup.rotation.z = (i * Math.PI * 2) / 3;
+    rotorGroup.add(bladeGroup);
   }
 
-  const baseRing = new THREE.Mesh(
-    new THREE.TorusGeometry(24, 1.2, 8, 64),
-    new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.9, depthWrite: false })
-  );
-  baseRing.rotation.x = Math.PI / 2;
-  baseRing.position.y = 0.05;
-  baseRing.userData.cpuDepthOcclusion = true;
-  cpuOcclusionObjects.push(baseRing);
-  group.add(baseRing);
-
-  const axisGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, TARGET.heightMeters, 0)
-  ]);
-  const axisMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92, depthWrite: false });
-  const axisLine = new THREE.Line(axisGeometry, axisMaterial);
-  axisLine.userData.cpuDepthOcclusion = true;
-  cpuOcclusionObjects.push(axisLine);
-  group.add(axisLine);
-
-  const topMarker = new THREE.Mesh(
-    new THREE.SphereGeometry(10, 16, 12),
-    new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.98, depthWrite: false })
-  );
-  topMarker.position.y = TARGET.heightMeters;
-  topMarker.userData.cpuDepthOcclusion = true;
-  cpuOcclusionObjects.push(topMarker);
-  group.add(topMarker);
-
-  for (const y of [50, 100, 150, 200]) {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(38, 1.8, 8, 72),
-      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.86, depthWrite: false })
-    );
-    ring.rotation.x = Math.PI / 2;
-    ring.position.y = y;
-    ring.userData.cpuDepthOcclusion = true;
-    cpuOcclusionObjects.push(ring);
-    group.add(ring);
-  }
-
-  const label = createLabelSprite('TURM 200 m');
-  label.position.y = TARGET.heightMeters + 22;
+  const label = createLabelSprite('WINDRAD 250 m');
+  label.position.set(0, TARGET.heightMeters + 18, 0);
   label.scale.set(120, 45, 1);
   label.userData.cpuDepthOcclusion = true;
+  label.frustumCulled = false;
   cpuOcclusionObjects.push(label);
   group.add(label);
+
   state.towerLabel = label;
   state.cpuDepthOcclusionObjects = cpuOcclusionObjects;
 
   group.traverse((object) => { object.frustumCulled = false; });
   return group;
+}
+
+function createBlade(lengthM, rootWidthM, tipWidthM, thicknessM) {
+  const THREE = getThree();
+  const rootHalf = rootWidthM / 2;
+  const tipHalf = tipWidthM / 2;
+  const halfThickness = thicknessM / 2;
+
+  const vertices = new Float32Array([
+    -rootHalf, 0, -halfThickness,
+    rootHalf, 0, -halfThickness,
+    rootHalf, 0, halfThickness,
+    -rootHalf, 0, halfThickness,
+
+    -tipHalf, lengthM, -halfThickness,
+    tipHalf, lengthM, -halfThickness,
+    tipHalf, lengthM, halfThickness,
+    -tipHalf, lengthM, halfThickness
+  ]);
+
+  const indices = [
+    0, 1, 2, 0, 2, 3,
+    4, 6, 5, 4, 7, 6,
+    0, 4, 5, 0, 5, 1,
+    1, 5, 6, 1, 6, 2,
+    2, 6, 7, 2, 7, 3,
+    3, 7, 4, 3, 4, 0
+  ];
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.04 })
+  );
 }
 
 export function buildTestMarker() {

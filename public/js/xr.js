@@ -296,10 +296,16 @@ export function renderXRFrame(time, xrFrame) {
   if (state.towerLabel && state.anchorReady) {
     state.towerLabel.quaternion.copy(xrCamera.quaternion);
   }
+  animateTurbineRotor(time);
 
   updateVisibilityMetric(xrCamera);
   updateCpuDepthOcclusion(xrFrame, xrCamera);
   updateDepthStatus(false);
 
   state.renderer.render(state.scene, state.camera);
+}
+
+function animateTurbineRotor(time) {
+  if (!state.turbineRotor || !state.anchorReady) return;
+  state.turbineRotor.rotation.z = state.turbineRotorBaseRotation + time * 0.003;
 }

@@ -4,6 +4,8 @@ export const state = {
   camera: null,
   tower: null,
   towerLabel: null,
+  turbineRotor: null,
+  turbineRotorBaseRotation: 0,
   testMarker: null,
   originalGetDepthSensingMesh: null,
   xrSession: null,
