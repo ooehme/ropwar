@@ -3,6 +3,9 @@ import { state } from './state.js';
 import { getThree } from './three-context.js';
 import { roundRect } from './utils/math.js';
 
+const TOWER_OCCLUSION_SEGMENTS = 24;
+const BLADE_OCCLUSION_SEGMENTS = 14;
+
 export function addSceneLights(scene) {
   const THREE = getThree();
 
@@ -25,24 +28,41 @@ export function buildWindTurbineModel() {
   const hubHeightM = TURBINE_OPTIONS.hubHeightM;
   const rotorRadiusM = TURBINE_OPTIONS.rotorDiameterM / 2;
   const towerRadiusM = TURBINE_OPTIONS.towerRadiusM;
+  const towerTopRadiusM = towerRadiusM * 0.62;
 
-  const addOccludable = (object) => {
+  const addOccludable = (object, parent = group) => {
     object.userData.cpuDepthOcclusion = true;
+    object.userData.cpuDepthHideScore = 0;
+    object.userData.cpuDepthHidden = false;
     object.frustumCulled = false;
     cpuOcclusionObjects.push(object);
-    group.add(object);
+    parent.add(object);
     return object;
   };
 
-  addOccludable(new THREE.Mesh(
-    new THREE.CylinderGeometry(8, 8, 2, 24),
-    new THREE.MeshBasicMaterial({ color: 0x0f766e })
-  )).position.y = 1;
+  const baseMaterial = new THREE.MeshBasicMaterial({ color: 0x0f766e });
+  const towerMaterial = new THREE.MeshStandardMaterial({ color: 0xbfc7d1, roughness: 0.7, metalness: 0.12 });
+  const nacelleMaterial = new THREE.MeshStandardMaterial({ color: 0xdbe2ea, roughness: 0.65, metalness: 0.12 });
+  const hubMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.08 });
+  const bladeMaterial = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.04 });
 
   addOccludable(new THREE.Mesh(
-    new THREE.CylinderGeometry(towerRadiusM * 0.62, towerRadiusM, hubHeightM, 18),
-    new THREE.MeshStandardMaterial({ color: 0xbfc7d1, roughness: 0.7, metalness: 0.12 })
-  )).position.y = hubHeightM / 2;
+    new THREE.CylinderGeometry(8, 8, 2, 24),
+    baseMaterial
+  )).position.y = 1;
+
+  for (let i = 0; i < TOWER_OCCLUSION_SEGMENTS; i += 1) {
+    const startY = (hubHeightM * i) / TOWER_OCCLUSION_SEGMENTS;
+    const endY = (hubHeightM * (i + 1)) / TOWER_OCCLUSION_SEGMENTS;
+    const segmentHeight = endY - startY;
+    const radiusBottom = lerp(towerRadiusM, towerTopRadiusM, startY / hubHeightM);
+    const radiusTop = lerp(towerRadiusM, towerTopRadiusM, endY / hubHeightM);
+    const segment = addOccludable(new THREE.Mesh(
+      new THREE.CylinderGeometry(radiusTop, radiusBottom, segmentHeight, 18),
+      towerMaterial
+    ));
+    segment.position.y = (startY + endY) / 2;
+  }
 
   const nacelleLengthM = 18;
   const nacelleRearOverhangM = 5;
@@ -52,13 +72,13 @@ export function buildWindTurbineModel() {
 
   const nacelle = addOccludable(new THREE.Mesh(
     new THREE.BoxGeometry(6, 6, nacelleLengthM),
-    new THREE.MeshStandardMaterial({ color: 0xdbe2ea, roughness: 0.65, metalness: 0.12 })
+    nacelleMaterial
   ));
   nacelle.position.set(0, hubHeightM, nacelleCenterZ);
 
   const hub = addOccludable(new THREE.Mesh(
     new THREE.SphereGeometry(3.6, 20, 14),
-    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.08 })
+    hubMaterial
   ));
   hub.position.set(0, hubHeightM, hubZ);
 
@@ -72,11 +92,15 @@ export function buildWindTurbineModel() {
 
   for (let i = 0; i < 3; i += 1) {
     const bladeGroup = new THREE.Group();
-    const blade = createBlade(rotorRadiusM, 4.2, 1.0, 0.8);
-    blade.userData.cpuDepthOcclusion = true;
-    blade.frustumCulled = false;
-    cpuOcclusionObjects.push(blade);
-    bladeGroup.add(blade);
+    bladeGroup.frustumCulled = false;
+    for (let segmentIndex = 0; segmentIndex < BLADE_OCCLUSION_SEGMENTS; segmentIndex += 1) {
+      const startM = (rotorRadiusM * segmentIndex) / BLADE_OCCLUSION_SEGMENTS;
+      const endM = (rotorRadiusM * (segmentIndex + 1)) / BLADE_OCCLUSION_SEGMENTS;
+      addOccludable(
+        createBladeSegment(startM, endM, rotorRadiusM, 4.2, 1.0, 0.8, bladeMaterial),
+        bladeGroup
+      );
+    }
     bladeGroup.rotation.z = (i * Math.PI * 2) / 3;
     rotorGroup.add(bladeGroup);
   }
@@ -84,9 +108,7 @@ export function buildWindTurbineModel() {
   const label = createLabelSprite('WINDRAD 250 m');
   label.position.set(0, TARGET.heightMeters + 18, 0);
   label.scale.set(120, 45, 1);
-  label.userData.cpuDepthOcclusion = true;
   label.frustumCulled = false;
-  cpuOcclusionObjects.push(label);
   group.add(label);
 
   state.towerLabel = label;
@@ -96,22 +118,22 @@ export function buildWindTurbineModel() {
   return group;
 }
 
-function createBlade(lengthM, rootWidthM, tipWidthM, thicknessM) {
+function createBladeSegment(startM, endM, lengthM, rootWidthM, tipWidthM, thicknessM, material) {
   const THREE = getThree();
-  const rootHalf = rootWidthM / 2;
-  const tipHalf = tipWidthM / 2;
+  const rootHalf = bladeWidthAt(startM, lengthM, rootWidthM, tipWidthM) / 2;
+  const tipHalf = bladeWidthAt(endM, lengthM, rootWidthM, tipWidthM) / 2;
   const halfThickness = thicknessM / 2;
 
   const vertices = new Float32Array([
-    -rootHalf, 0, -halfThickness,
-    rootHalf, 0, -halfThickness,
-    rootHalf, 0, halfThickness,
-    -rootHalf, 0, halfThickness,
+    -rootHalf, startM, -halfThickness,
+    rootHalf, startM, -halfThickness,
+    rootHalf, startM, halfThickness,
+    -rootHalf, startM, halfThickness,
 
-    -tipHalf, lengthM, -halfThickness,
-    tipHalf, lengthM, -halfThickness,
-    tipHalf, lengthM, halfThickness,
-    -tipHalf, lengthM, halfThickness
+    -tipHalf, endM, -halfThickness,
+    tipHalf, endM, -halfThickness,
+    tipHalf, endM, halfThickness,
+    -tipHalf, endM, halfThickness
   ]);
 
   const indices = [
@@ -128,10 +150,15 @@ function createBlade(lengthM, rootWidthM, tipWidthM, thicknessM) {
   geometry.setIndex(indices);
   geometry.computeVertexNormals();
 
-  return new THREE.Mesh(
-    geometry,
-    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.72, metalness: 0.04 })
-  );
+  return new THREE.Mesh(geometry, material);
+}
+
+function bladeWidthAt(positionM, lengthM, rootWidthM, tipWidthM) {
+  return lerp(rootWidthM, tipWidthM, positionM / lengthM);
+}
+
+function lerp(start, end, amount) {
+  return start + (end - start) * amount;
 }
 
 export function buildTestMarker() {

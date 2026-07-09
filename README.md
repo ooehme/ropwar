@@ -14,12 +14,14 @@ Diese Version hat keinen Kamera-/Sensor-Fallback. WebXR `immersive-ar`, GPS, Ini
 
 Die Tiefenmaske ist nicht togglebar und bleibt Pflicht. v20 versucht aber nicht mehr nur GPU-Depth. Die App versucht mehrere WebXR-Depth-Konfigurationen:
 
-1. `local-floor`, GPU bevorzugt, CPU erlaubt
-2. `local-floor`, CPU bevorzugt, GPU erlaubt
-3. `local`, GPU bevorzugt, CPU erlaubt
+1. `local-floor`, CPU exklusiv
+2. `local`, CPU exklusiv
+3. `local-floor`, CPU bevorzugt, GPU erlaubt
 4. `local`, CPU bevorzugt, GPU erlaubt
+5. `local-floor`, GPU-Fallback
+6. `local`, GPU-Fallback
 
-Wenn GPU-Depth geliefert wird, nutzt Three.js die GPU-Occlusion. Wenn nur CPU-Depth geliefert wird, nutzt die App eine approximative Objekt-Maske: Teile der Windkraftanlage werden anhand von `XRCPUDepthInformation.getDepthInMeters()` ein- oder ausgeblendet. Das ist gröber als echte Pixel-Occlusion, kann aber funktionieren, wenn der Browser keine WebGL-Depth-Texture freigibt.
+Wenn CPU-Depth geliefert wird, nutzt die App eine segmentierte Maske: Teile der Windkraftanlage werden anhand von `XRCPUDepthInformation.getDepthInMeters()` ein- oder ausgeblendet. Das ist gröber als echte Pixel-Occlusion, vermeidet aber das flächige Wegblenden durch instabile GPU-Depth-Meshes. GPU-Depth bleibt nur Fallback.
 
 Wenn keine Konfiguration startet, wird AR nicht gestartet und die App meldet eindeutig, dass keine startbare Depth-Session verfügbar ist.
 

@@ -4,6 +4,12 @@ import { getThree } from './three-context.js';
 import { clamp } from './utils/math.js';
 import { logMessage, setStatus } from './ui/status.js';
 
+const CPU_OCCLUSION_MARGIN_METERS = 0.35;
+const CPU_OCCLUSION_MAX_REAL_DEPTH_METERS = 35;
+const CPU_HIDE_SCORE_THRESHOLD = 3;
+const CPU_HIDE_SCORE_MAX = 6;
+const CPU_SHOW_SCORE_DROP = 2;
+
 export function setDepthAlwaysOn() {
   state.depthRequestEnabled = true;
   state.depthOcclusionEnabled = true;
@@ -69,27 +75,39 @@ export function buildDepthSessionAttempts() {
 
   return [
     sessionAttempt(
-      'local-floor · GPU bevorzugt, CPU erlaubt · luminance-alpha/float32',
+      'local-floor - CPU exklusiv - float32/luminance-alpha',
+      'local-floor',
+      ['cpu-optimized'],
+      ['float32', 'luminance-alpha']
+    ),
+    sessionAttempt(
+      'local - CPU exklusiv - float32/luminance-alpha',
+      'local',
+      ['cpu-optimized'],
+      ['float32', 'luminance-alpha']
+    ),
+    sessionAttempt(
+      'local-floor - CPU bevorzugt, GPU erlaubt - float32/luminance-alpha',
+      'local-floor',
+      ['cpu-optimized', 'gpu-optimized'],
+      ['float32', 'luminance-alpha']
+    ),
+    sessionAttempt(
+      'local - CPU bevorzugt, GPU erlaubt - float32/luminance-alpha',
+      'local',
+      ['cpu-optimized', 'gpu-optimized'],
+      ['float32', 'luminance-alpha']
+    ),
+    sessionAttempt(
+      'local-floor - GPU Fallback - luminance-alpha/float32',
       'local-floor',
       ['gpu-optimized', 'cpu-optimized'],
       ['luminance-alpha', 'float32']
     ),
     sessionAttempt(
-      'local-floor · CPU bevorzugt, GPU erlaubt · luminance-alpha/float32',
-      'local-floor',
-      ['cpu-optimized', 'gpu-optimized'],
-      ['luminance-alpha', 'float32']
-    ),
-    sessionAttempt(
-      'local · GPU bevorzugt, CPU erlaubt · luminance-alpha/float32',
+      'local - GPU Fallback - luminance-alpha/float32',
       'local',
       ['gpu-optimized', 'cpu-optimized'],
-      ['luminance-alpha', 'float32']
-    ),
-    sessionAttempt(
-      'local · CPU bevorzugt, GPU erlaubt · luminance-alpha/float32',
-      'local',
-      ['cpu-optimized', 'gpu-optimized'],
       ['luminance-alpha', 'float32']
     )
   ];
@@ -227,27 +245,28 @@ export function updateCpuDepthOcclusion(xrFrame, xrCamera) {
   viewCamera.matrixWorldInverse.copy(viewCamera.matrixWorld).invert();
 
   let occluded = 0;
-  const marginMeters = 0.35;
+  const sample = new THREE.Vector3();
+  const ndc = new THREE.Vector3();
+  const cameraSpace = new THREE.Vector3();
 
   for (const object of state.cpuDepthOcclusionObjects || []) {
     if (!object || !object.parent) continue;
 
-    const sample = new THREE.Vector3();
     object.getWorldPosition(sample);
 
-    const ndc = sample.clone().project(viewCamera);
+    ndc.copy(sample).project(viewCamera);
     if (![ndc.x, ndc.y, ndc.z].every(Number.isFinite) || ndc.z < -1 || ndc.z > 1) {
-      object.visible = true;
+      applyCpuDepthVisibility(object, false);
       continue;
     }
 
     const nx = clamp((ndc.x + 1) * 0.5, 0, 1);
     const ny = clamp((1 - ndc.y) * 0.5, 0, 1);
 
-    const cameraSpace = sample.clone().applyMatrix4(viewCamera.matrixWorldInverse);
+    cameraSpace.copy(sample).applyMatrix4(viewCamera.matrixWorldInverse);
     const virtualDepthMeters = -cameraSpace.z;
     if (!Number.isFinite(virtualDepthMeters) || virtualDepthMeters <= 0) {
-      object.visible = true;
+      applyCpuDepthVisibility(object, false);
       continue;
     }
 
@@ -259,18 +278,41 @@ export function updateCpuDepthOcclusion(xrFrame, xrCamera) {
     }
 
     // Die Depth-API gibt 0 zurück, wenn an dieser Bildstelle keine valide reale Tiefe vorliegt.
-    const hide = Number.isFinite(realDepthMeters) && realDepthMeters > 0 && realDepthMeters + marginMeters < virtualDepthMeters;
-    object.visible = !hide;
-    if (hide) occluded += 1;
+    const hide =
+      Number.isFinite(realDepthMeters) &&
+      realDepthMeters > 0 &&
+      realDepthMeters <= CPU_OCCLUSION_MAX_REAL_DEPTH_METERS &&
+      realDepthMeters + CPU_OCCLUSION_MARGIN_METERS < virtualDepthMeters;
+
+    if (applyCpuDepthVisibility(object, hide)) occluded += 1;
   }
 
   state.cpuDepthFramesSeen += 1;
   state.cpuDepthOccludedObjects = occluded;
 }
 
+function applyCpuDepthVisibility(object, hide) {
+  const previousScore = object.userData.cpuDepthHideScore || 0;
+  const nextScore = hide
+    ? Math.min(CPU_HIDE_SCORE_MAX, previousScore + 1)
+    : Math.max(0, previousScore - CPU_SHOW_SCORE_DROP);
+  const wasHidden = object.userData.cpuDepthHidden === true;
+  const hidden = wasHidden
+    ? nextScore > 0
+    : nextScore >= CPU_HIDE_SCORE_THRESHOLD;
+
+  object.userData.cpuDepthHideScore = nextScore;
+  object.userData.cpuDepthHidden = hidden;
+  object.visible = !hidden;
+  return hidden;
+}
+
 export function restoreCpuDepthOcclusionObjects() {
   for (const object of state.cpuDepthOcclusionObjects || []) {
-    if (object) object.visible = true;
+    if (!object) continue;
+    object.userData.cpuDepthHideScore = 0;
+    object.userData.cpuDepthHidden = false;
+    object.visible = true;
   }
   state.cpuDepthOccludedObjects = 0;
 }
