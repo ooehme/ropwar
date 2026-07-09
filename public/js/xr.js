@@ -118,6 +118,9 @@ export async function startWebXROnlyApp() {
     state.referenceSpaceType = selectedAttempt.referenceSpaceType;
     state.depthMode = selectedAttempt.depthMode || 'unknown';
     logMessage(`WebXR-Session erstellt: ${selectedAttempt.label}. Referenzraum: ${state.referenceSpaceType}.`);
+
+    startHighAccuracyLocationSampling();
+    startCompassSampling();
   } catch (error) {
     stopLocationSampling();
     stopCompassSampling();
