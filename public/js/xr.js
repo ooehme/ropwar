@@ -94,18 +94,7 @@ export async function startWebXROnlyApp() {
 
   // Wichtig: Diese Aufrufe passieren synchron im Button-Klick, bevor das erste await kommt.
   // Browser dürfen WebXR- und Sensor-Prompts sonst wegen fehlender Nutzeraktivierung blockieren.
-  // erst XR starten
-  const result = await requestDepthSessionWithRetries();
-  session = result.session;
-  selectedAttempt = result.attempt;
-  state.referenceSpaceType = selectedAttempt.referenceSpaceType;
-  state.depthMode = selectedAttempt.depthMode || 'unknown';
-  logMessage(`WebXR-Session erstellt: ${selectedAttempt.label}. Referenzraum: ${state.referenceSpaceType}.`);
-
-  // erst danach GPS + Kompass
-  startHighAccuracyLocationSampling();
-  startCompassSampling();
-
+  
   state.depthRequestEnabled = false;
   state.depthOcclusionEnabled = false;
   state.depthSessionRequested = false;
