@@ -40,11 +40,21 @@ export const state = {
   depthRequestEnabled: true,
   depthSessionRequested: false,
   depthFeatureGranted: false,
+  depthMode: 'unknown',
+  depthAttemptErrors: [],
   depthFramesSeen: 0,
   cpuDepthFramesSeen: 0,
   cpuDepthOccludedObjects: 0,
   cpuDepthOcclusionObjects: [],
   cpuDepthWarned: false,
   lastDepthStatusUpdate: 0,
+  capabilities: {
+    webxr: 'unknown',
+    gps: 'unknown',
+    compass: 'unknown',
+    depthGpu: 'unknown',
+    depthCpu: 'unknown',
+    depthOff: 'unknown'
+  },
   referenceSpaceType: 'local-floor'
 };

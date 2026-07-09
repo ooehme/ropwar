@@ -29,11 +29,18 @@ export function updateStopButtons(isRunning) {
 export function markClientBooted() {
   const xrInfo = navigator.xr ? 'navigator.xr vorhanden' : 'navigator.xr fehlt';
   const secureInfo = window.isSecureContext ? 'HTTPS/SecureContext ja' : 'kein SecureContext';
+  state.capabilities.webxr = navigator.xr ? 'testing' : 'unavailable';
+  state.capabilities.gps = navigator.geolocation ? 'available' : 'unavailable';
+  state.capabilities.compass = ('DeviceOrientationEvent' in window) ? 'available' : 'unavailable';
+  state.capabilities.depthGpu = navigator.xr ? 'unknown' : 'unavailable';
+  state.capabilities.depthCpu = navigator.xr ? 'unknown' : 'unavailable';
+  state.capabilities.depthOff = navigator.xr ? 'unknown' : 'unavailable';
   try {
     const pref = localStorage.getItem('towerxr-ui-hidden');
     if (pref === '1') setUiHidden(true);
   } catch (_) {}
-  logMessage(`App-JavaScript v21 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
+  updateCapabilityIcons();
+  logMessage(`App-JavaScript v22 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
 }
 
 export function updateMetrics() {
@@ -68,6 +75,31 @@ export function setStatus(element, text, status) {
   element.textContent = text;
   element.classList.remove('ok', 'warn', 'bad');
   element.classList.add(status);
+}
+
+export function setCapability(name, status) {
+  if (!Object.hasOwn(state.capabilities, name)) return;
+  state.capabilities[name] = status;
+  updateCapabilityIcons();
+}
+
+export function updateCapabilityIcons() {
+  applyCapabilityStatus(dom.capWebxr, state.capabilities.webxr);
+  applyCapabilityStatus(dom.capGps, state.capabilities.gps);
+  applyCapabilityStatus(dom.capCompass, state.capabilities.compass);
+  applyCapabilityStatus(dom.capDepthGpu, state.capabilities.depthGpu);
+  applyCapabilityStatus(dom.capDepthCpu, state.capabilities.depthCpu);
+  applyCapabilityStatus(dom.capDepthOff, state.capabilities.depthOff);
+}
+
+function applyCapabilityStatus(element, status) {
+  if (!element) return;
+  const normalized = ['available', 'active', 'testing', 'unavailable', 'unknown'].includes(status)
+    ? status
+    : 'unknown';
+  element.classList.remove('available', 'active', 'testing', 'unavailable', 'unknown');
+  element.classList.add(normalized);
+  element.setAttribute('aria-disabled', normalized === 'unavailable' ? 'true' : 'false');
 }
 
 export function logMessage(message) {

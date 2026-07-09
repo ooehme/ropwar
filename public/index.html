@@ -10,7 +10,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="stylesheet" href="/styles.css?v=21">
+  <link rel="stylesheet" href="/styles.css?v=22">
 </head>
 <body>
   <main id="app">
@@ -38,6 +38,15 @@
         <div class="status-card warn" id="depthStatus">Depth: wartet</div>
       </div>
 
+      <div id="capabilityGrid" aria-label="Geraete-Faehigkeiten">
+        <span class="capability-chip unknown" id="capWebxr" title="WebXR">XR</span>
+        <span class="capability-chip unknown" id="capGps" title="GPS">GPS</span>
+        <span class="capability-chip unknown" id="capCompass" title="Kompass">KMP</span>
+        <span class="capability-chip unknown" id="capDepthGpu" title="GPU Depth">GPU</span>
+        <span class="capability-chip unknown" id="capDepthCpu" title="CPU Depth">CPU</span>
+        <span class="capability-chip unknown" id="capDepthOff" title="Depth aus">OFF</span>
+      </div>
+
       <div id="metrics">
         <span id="distanceMetric">Entfernung: –</span>
         <span id="bearingMetric">Peilung: –</span>
@@ -58,7 +67,7 @@
           <button id="testMarkerButton" type="button" disabled>Testmarker vor Kamera</button>
           <button id="clearCacheButton" type="button">Cache zurücksetzen</button>
         </div>
-        <p class="hint">Diese Version hat keinen Kamera-/Sensor-Fallback. Das Windrad wird nur mit WebXR immersive-ar gerendert. Die Zusatzknöpfe dienen zur Sichtprüfung und zur manuellen Korrektur der Geo-Ausrichtung. Die WebXR Depth API wird jetzt immer als Pflichtfunktion beim AR-Start angefordert; ohne Depth startet die AR-Session nicht. Höhendaten: Open-Meteo Elevation API auf Basis von Copernicus DEM GLO-90.</p>
+        <p class="hint">Diese Version rendert das Windrad mit WebXR immersive-ar. Die Zusatzknöpfe dienen zur Sichtprüfung und zur manuellen Korrektur der Geo-Ausrichtung. Depth wird beim Start in der Reihenfolge GPU, CPU, aus getestet; ohne Depth bleibt AR nutzbar. Höhendaten: Open-Meteo Elevation API auf Basis von Copernicus DEM GLO-90.</p>
       </details>
 
       <div id="messageLog"></div>
@@ -98,8 +107,8 @@
     window.towerBootLog('HTML-Bootstrap geladen. App-Modul wird nachgeladen.');
   </script>
   <script type="module">
-    window.towerBootLog('Import /app.js?v=21 gestartet.');
-    import('/app.js?v=21').then(function() {
+    window.towerBootLog('Import /app.js?v=22 gestartet.');
+    import('/app.js?v=22').then(function() {
       window.towerBootLog('App-Modul erfolgreich geladen.');
     }).catch(function(error) {
       window.towerBootLog('App-Modul Fehler: ' + (error && error.message ? error.message : error));

@@ -1,4 +1,4 @@
-# Windrad XR v21 – WebXR Depth Pflichtmodus
+# Windrad XR v22 - adaptiver WebXR-Depth-Start
 
 Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 
@@ -8,7 +8,11 @@ Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 - Nabenhöhe: `165 m`
 - Rotordurchmesser: `170 m`
 
-Diese Version hat keinen Kamera-/Sensor-Fallback. WebXR `immersive-ar`, GPS, Initialkompass und WebXR Depth Sensing werden verwendet.
+Diese Version nutzt WebXR `immersive-ar`, GPS und Initialkompass. WebXR Depth wird beim Start adaptiv getestet: GPU, dann CPU, dann AR ohne Depth.
+
+## Änderung in v22
+
+Depth blockiert den AR-Start nicht mehr. Die App versucht zuerst GPU-Depth, danach CPU-Depth und startet zuletzt ohne Depth, wenn keine Tiefenmaske verfügbar ist. Die Capability-Leiste zeigt XR, GPS, Kompass, GPU-Depth, CPU-Depth und OFF als aktive, verfügbare oder ausgegraute Symbole.
 
 ## Änderung in v21
 
@@ -77,11 +81,11 @@ Diese URLs müssen JavaScript/JSON liefern:
 
 ## Handy-Test
 
-1. Öffnen mit `https://deine-domain/?v=21`
+1. Öffnen mit `https://deine-domain/?v=22`
 2. **XR-Anker → Cache zurücksetzen**
 3. neu laden
 4. AR starten
-5. Im Log auf `Depth-Session-Versuch`, `XR-Features`, `DepthUsage` und `Tiefenmaske` achten
+5. Im Log auf `XR-Session-Versuch`, `XR-Features`, `DepthUsage` und `Tiefenmaske` achten
 
 ## Einschränkung
 

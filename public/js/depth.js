@@ -2,7 +2,7 @@ import { dom } from './dom.js';
 import { state } from './state.js';
 import { getThree } from './three-context.js';
 import { clamp } from './utils/math.js';
-import { logMessage, setStatus } from './ui/status.js';
+import { logMessage, setCapability, setStatus } from './ui/status.js';
 
 const CPU_OCCLUSION_MARGIN_METERS = 0.35;
 const CPU_OCCLUSION_MAX_REAL_DEPTH_METERS = 35;
@@ -11,56 +11,54 @@ const CPU_HIDE_SCORE_MAX = 6;
 const CPU_SHOW_SCORE_DROP = 2;
 
 export function setDepthAlwaysOn() {
-  state.depthRequestEnabled = true;
-  state.depthOcclusionEnabled = true;
+  state.depthRequestEnabled = false;
+  state.depthOcclusionEnabled = false;
   state.depthSessionRequested = false;
   state.depthFeatureGranted = false;
-  try {
-    localStorage.setItem('towerxr-depth-request', '1');
-    localStorage.setItem('towerxr-depth-occlusion', '1');
-  } catch (_) {}
-  setStatus(dom.depthStatus, 'Depth: Pflicht beim Start', 'warn');
-  if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: wird angefordert';
+  state.depthMode = 'unknown';
+  setStatus(dom.depthStatus, 'Depth: Test wartet', 'warn');
+  if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: GPU -> CPU -> aus';
 }
 
 export function loadDepthOcclusionPreference() {
-  state.depthOcclusionEnabled = true;
+  state.depthOcclusionEnabled = state.depthMode !== 'off';
 }
 
 export function loadDepthRequestPreference() {
-  state.depthRequestEnabled = true;
+  state.depthRequestEnabled = state.depthMode !== 'off';
   updateDepthStatus(true);
 }
 
 export function setDepthRequestEnabled(enabled) {
-  state.depthRequestEnabled = true;
-  logMessage('Depth API ist in v21 Pflicht und kann nicht deaktiviert werden.');
+  state.depthRequestEnabled = Boolean(enabled);
+  logMessage('Depth wird automatisch als GPU, dann CPU, dann aus getestet.');
   updateDepthStatus(true);
 }
 
 export function updateDepthStartToggleButton() {
-  // v21: kein UI-Toggle mehr. Depth ist Pflicht.
+  // Kein UI-Toggle: Depth wird pro Geraet automatisch getestet.
 }
 
 export function setDepthOcclusionEnabled(enabled) {
-  state.depthOcclusionEnabled = true;
-  logMessage('Tiefenmaske ist in v21 immer eingeschaltet und kann nicht deaktiviert werden.');
+  state.depthOcclusionEnabled = Boolean(enabled) && state.depthMode !== 'off';
+  logMessage('Tiefenmaske folgt dem automatisch gewaehlten Depth-Modus.');
   updateDepthStatus(true);
 }
 
 export function updateDepthToggleButtons() {
-  // v21: kein UI-Toggle mehr. Depth ist Pflicht.
+  // Kein UI-Toggle: Darstellung passt sich an die getestete Capability an.
 }
 
 export function patchDepthOcclusionToggle() {
-  // v21: Three.js Depth-Sensing-Mesh bleibt immer aktiv.
+  // Three.js bekommt Depth nur, wenn die Session GPU-Depth geliefert hat.
 }
 
 export function buildDepthSessionAttempts() {
   const overlayRoot = dom.overlayRoot || dom.hud;
   const baseOverlay = { root: overlayRoot };
-  const sessionAttempt = (label, referenceSpaceType, usagePreference, dataFormatPreference) => ({
+  const depthAttempt = (label, depthMode, referenceSpaceType, usagePreference, dataFormatPreference) => ({
     label,
+    depthMode,
     referenceSpaceType,
     sessionInit: {
       requiredFeatures: [referenceSpaceType, 'depth-sensing'],
@@ -72,63 +70,133 @@ export function buildDepthSessionAttempts() {
       domOverlay: baseOverlay
     }
   });
+  const offAttempt = (label, referenceSpaceType) => ({
+    label,
+    depthMode: 'off',
+    referenceSpaceType,
+    sessionInit: {
+      requiredFeatures: [referenceSpaceType],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: baseOverlay
+    }
+  });
 
   return [
-    sessionAttempt(
-      'local-floor - CPU exklusiv - float32/luminance-alpha',
+    depthAttempt(
+      'local-floor - GPU Depth - luminance-alpha/float32',
+      'gpu',
+      'local-floor',
+      ['gpu-optimized'],
+      ['luminance-alpha', 'float32']
+    ),
+    depthAttempt(
+      'local - GPU Depth - luminance-alpha/float32',
+      'gpu',
+      'local',
+      ['gpu-optimized'],
+      ['luminance-alpha', 'float32']
+    ),
+    depthAttempt(
+      'local-floor - CPU Depth - float32/luminance-alpha',
+      'cpu',
       'local-floor',
       ['cpu-optimized'],
       ['float32', 'luminance-alpha']
     ),
-    sessionAttempt(
-      'local - CPU exklusiv - float32/luminance-alpha',
+    depthAttempt(
+      'local - CPU Depth - float32/luminance-alpha',
+      'cpu',
       'local',
       ['cpu-optimized'],
       ['float32', 'luminance-alpha']
     ),
-    sessionAttempt(
-      'local-floor - CPU bevorzugt, GPU erlaubt - float32/luminance-alpha',
-      'local-floor',
-      ['cpu-optimized', 'gpu-optimized'],
-      ['float32', 'luminance-alpha']
-    ),
-    sessionAttempt(
-      'local - CPU bevorzugt, GPU erlaubt - float32/luminance-alpha',
-      'local',
-      ['cpu-optimized', 'gpu-optimized'],
-      ['float32', 'luminance-alpha']
-    ),
-    sessionAttempt(
-      'local-floor - GPU Fallback - luminance-alpha/float32',
-      'local-floor',
-      ['gpu-optimized', 'cpu-optimized'],
-      ['luminance-alpha', 'float32']
-    ),
-    sessionAttempt(
-      'local - GPU Fallback - luminance-alpha/float32',
-      'local',
-      ['gpu-optimized', 'cpu-optimized'],
-      ['luminance-alpha', 'float32']
-    )
+    offAttempt('local-floor - Depth aus', 'local-floor'),
+    offAttempt('local - Depth aus', 'local')
   ];
 }
 
 export async function requestDepthSessionWithRetries() {
   const errors = [];
+  state.depthAttemptErrors = errors;
+  setCapability('depthGpu', 'testing');
+  setCapability('depthCpu', 'unknown');
+  setCapability('depthOff', 'unknown');
+
   for (const attempt of buildDepthSessionAttempts()) {
     try {
-      logMessage(`Depth-Session-Versuch: ${attempt.label}.`);
+      updateDepthCapabilityTesting(attempt.depthMode);
+      logMessage(`XR-Session-Versuch: ${attempt.label}.`);
       const session = await navigator.xr.requestSession('immersive-ar', attempt.sessionInit);
+      applyDepthAttemptSuccess(attempt.depthMode);
       return { session, attempt };
     } catch (error) {
-      const detail = `${attempt.label}: ${error?.name || 'Fehler'} · ${error?.message || error}`;
+      const detail = `${attempt.label}: ${error?.name || 'Fehler'} - ${error?.message || error}`;
       errors.push(detail);
-      logMessage(`Depth-Session-Versuch fehlgeschlagen: ${detail}`);
+      logMessage(`XR-Session-Versuch fehlgeschlagen: ${detail}`);
+      if (isFatalSessionError(error)) {
+        applyDepthAttemptFailure();
+        throw error;
+      }
     }
   }
-  const error = new Error(`Keine Depth-Konfiguration wurde akzeptiert. ${errors.join(' | ')}`);
-  error.name = 'DepthSessionNotSupportedError';
-  throw error;
+
+  applyDepthAttemptFailure();
+  const startupError = new Error(`Keine AR-Konfiguration wurde akzeptiert. ${errors.join(' | ')}`);
+  startupError.name = 'DepthSessionNotSupportedError';
+  throw startupError;
+}
+
+function updateDepthCapabilityTesting(depthMode) {
+  if (depthMode === 'gpu') {
+    setCapability('depthGpu', 'testing');
+    setCapability('depthCpu', 'unknown');
+    setCapability('depthOff', 'unknown');
+  } else if (depthMode === 'cpu') {
+    setCapability('depthGpu', 'unavailable');
+    setCapability('depthCpu', 'testing');
+    setCapability('depthOff', 'unknown');
+  } else {
+    setCapability('depthGpu', 'unavailable');
+    setCapability('depthCpu', 'unavailable');
+    setCapability('depthOff', 'testing');
+  }
+}
+
+function applyDepthAttemptSuccess(depthMode) {
+  state.depthMode = depthMode;
+  state.depthRequestEnabled = depthMode !== 'off';
+  state.depthOcclusionEnabled = depthMode !== 'off';
+  state.depthSessionRequested = depthMode !== 'off';
+  state.depthFeatureGranted = depthMode !== 'off';
+
+  if (depthMode === 'gpu') {
+    setCapability('depthGpu', 'active');
+    setCapability('depthCpu', 'unknown');
+    setCapability('depthOff', 'available');
+  } else if (depthMode === 'cpu') {
+    setCapability('depthGpu', 'unavailable');
+    setCapability('depthCpu', 'active');
+    setCapability('depthOff', 'available');
+  } else {
+    setCapability('depthGpu', 'unavailable');
+    setCapability('depthCpu', 'unavailable');
+    setCapability('depthOff', 'active');
+  }
+}
+
+function applyDepthAttemptFailure() {
+  state.depthMode = 'unknown';
+  state.depthRequestEnabled = false;
+  state.depthOcclusionEnabled = false;
+  state.depthSessionRequested = false;
+  state.depthFeatureGranted = false;
+  setCapability('depthGpu', 'unavailable');
+  setCapability('depthCpu', 'unavailable');
+  setCapability('depthOff', 'unavailable');
+}
+
+function isFatalSessionError(error) {
+  return ['NotAllowedError', 'SecurityError', 'InvalidStateError'].includes(error?.name);
 }
 
 export function makeXRSessionFeatureListSafe(session) {
@@ -192,7 +260,7 @@ export function readXRSessionFeatureInfo(session) {
 
 export function updateCpuDepthOcclusion(xrFrame, xrCamera) {
   const THREE = getThree();
-  if (!state.anchorReady || !state.tower || !state.xrSession || state.xrSession.depthUsage !== 'cpu-optimized') {
+  if (!state.anchorReady || !state.tower || !state.xrSession || state.depthMode !== 'cpu' || state.xrSession.depthUsage !== 'cpu-optimized') {
     restoreCpuDepthOcclusionObjects();
     return;
   }
@@ -325,8 +393,16 @@ export function updateDepthStatus(force) {
   if (!dom.depthStatus && !dom.depthMetric) return;
 
   if (!state.xrSession) {
-    setStatus(dom.depthStatus, 'Depth: Pflicht beim Start', 'warn');
-    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: wird angefordert';
+    setStatus(dom.depthStatus, 'Depth: Test wartet', 'warn');
+    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: GPU -> CPU -> aus';
+    return;
+  }
+
+  if (state.depthMode === 'off') {
+    state.depthFeatureGranted = false;
+    restoreCpuDepthOcclusionObjects();
+    setStatus(dom.depthStatus, 'Depth: aus', 'warn');
+    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: aus, AR laeuft ohne Maske';
     return;
   }
 
@@ -336,7 +412,7 @@ export function updateDepthStatus(force) {
 
   if (!granted) {
     setStatus(dom.depthStatus, 'Depth: nicht freigegeben', 'bad');
-    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: Pflicht, aber nicht verfügbar';
+    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: angefragt, aber nicht verfuegbar';
     return;
   }
 
@@ -353,6 +429,6 @@ export function updateDepthStatus(force) {
     if (dom.depthMetric) dom.depthMetric.textContent = `Tiefenmaske: CPU aktiv · Frames ${state.cpuDepthFramesSeen} · verdeckt ${state.cpuDepthOccludedObjects}`;
   } else {
     setStatus(dom.depthStatus, 'Depth: wartet auf Tiefenbild', 'warn');
-    if (dom.depthMetric) dom.depthMetric.textContent = `Tiefenmaske: Pflicht, wartet · ${usage} angefragt`;
+    if (dom.depthMetric) dom.depthMetric.textContent = `Tiefenmaske: wartet - ${usage} angefragt`;
   }
 }

@@ -20,24 +20,27 @@ import { startHighAccuracyLocationSampling, stopLocationSampling } from './locat
 import { ensureThreeInitialized } from './three.js';
 import { readableXRError } from './utils/errors.js';
 import { withTimeout } from './utils/math.js';
-import { clearMetric, logMessage, setStatus, updateStopButtons } from './ui/status.js';
+import { clearMetric, logMessage, setCapability, setStatus, updateStopButtons } from './ui/status.js';
 
 export async function checkWebXRSupport() {
   dom.startButton.disabled = false;
 
   if (!window.isSecureContext) {
+    setCapability('webxr', 'unavailable');
     setStatus(dom.xrStatus, 'WebXR: HTTPS erforderlich', 'bad');
     logMessage('WebXR AR benötigt HTTPS. Der Startknopf bleibt aktiv, zeigt beim Start aber denselben Fehler.');
     return;
   }
 
   if (!navigator.xr?.isSessionSupported) {
+    setCapability('webxr', 'unavailable');
     setStatus(dom.xrStatus, 'WebXR: API fehlt', 'bad');
     logMessage('Dieser Browser stellt navigator.xr nicht bereit. Es gibt keinen Fallback-Modus. Auf Android zuerst Chrome testen.');
     return;
   }
 
   try {
+    setCapability('webxr', 'testing');
     setStatus(dom.xrStatus, 'WebXR: Vorprüfung läuft', 'warn');
     state.xrSupported = await withTimeout(
       navigator.xr.isSessionSupported('immersive-ar'),
@@ -46,14 +49,17 @@ export async function checkWebXRSupport() {
     );
 
     if (state.xrSupported) {
+      setCapability('webxr', 'available');
       setStatus(dom.xrStatus, 'WebXR: immersive-ar verfügbar', 'ok');
       logMessage('WebXR immersive-ar ist laut Vorprüfung verfügbar. Berechtigungen werden erst nach Klick auf „AR starten“ angefragt.');
     } else {
+      setCapability('webxr', 'unavailable');
       setStatus(dom.xrStatus, 'WebXR: immersive-ar nicht verfügbar', 'bad');
       logMessage('Dieses Gerät meldet keine WebXR-AR-Unterstützung. Die App startet ohne Fallback nicht.');
     }
   } catch (error) {
     state.xrSupported = null;
+    setCapability('webxr', 'unknown');
     setStatus(dom.xrStatus, 'WebXR: Vorprüfung unklar', 'warn');
     logMessage(`${error.message}. Beim Klick auf „AR starten“ wird requestSession trotzdem direkt versucht.`);
   }
@@ -83,14 +89,15 @@ export async function startWebXROnlyApp() {
   startHighAccuracyLocationSampling();
   startCompassSampling();
 
-  state.depthRequestEnabled = true;
-  state.depthOcclusionEnabled = true;
-  state.depthSessionRequested = true;
+  state.depthRequestEnabled = false;
+  state.depthOcclusionEnabled = false;
+  state.depthSessionRequested = false;
   state.depthFeatureGranted = false;
+  state.depthMode = 'unknown';
   state.referenceSpaceType = 'local-floor';
-  setStatus(dom.depthStatus, 'Depth: Pflicht angefragt', 'warn');
-  if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: Pflicht, wartet';
-  logMessage('WebXR Depth Sensing ist in v21 weiterhin Pflicht. Es werden GPU- und CPU-Depth-Konfigurationen versucht. Ohne freigegebene Depth-Session startet diese Version nicht.');
+  setStatus(dom.depthStatus, 'Depth: teste GPU', 'warn');
+  if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: GPU -> CPU -> aus';
+  logMessage('Depth-Capability-Test startet in der Reihenfolge GPU, CPU, aus. Wenn Depth fehlt, startet AR ohne Tiefenmaske.');
 
   let session = null;
   let selectedAttempt = null;
@@ -101,17 +108,18 @@ export async function startWebXROnlyApp() {
     session = result.session;
     selectedAttempt = result.attempt;
     state.referenceSpaceType = selectedAttempt.referenceSpaceType;
-    logMessage(`WebXR-Session erstellt mit Depth-Konfiguration: ${selectedAttempt.label}. Referenzraum: ${state.referenceSpaceType}.`);
+    state.depthMode = selectedAttempt.depthMode || 'unknown';
+    logMessage(`WebXR-Session erstellt: ${selectedAttempt.label}. Referenzraum: ${state.referenceSpaceType}.`);
   } catch (error) {
     stopLocationSampling();
     stopCompassSampling();
     dom.startButton.disabled = false;
     state.starting = false;
-    setStatus(dom.xrStatus, 'WebXR: Depth nicht verfügbar', 'bad');
-    setStatus(dom.depthStatus, 'Depth: nicht verfügbar', 'bad');
-    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: keine startbare Depth-Session';
+    setStatus(dom.xrStatus, 'WebXR: Start fehlgeschlagen', 'bad');
+    setStatus(dom.depthStatus, 'Depth: kein AR-Start', 'bad');
+    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: keine startbare AR-Session';
     logMessage(`AR-Session konnte nicht erstellt werden: ${readableXRError(error)}`);
-    logMessage('Ergebnis: WebXR-AR ist verfügbar, aber die angeforderte WebXR Depth API wurde von Browser/Gerät nicht als startbare Depth-Session akzeptiert. Ohne Depth wird in dieser Version nicht gestartet.');
+    logMessage('Ergebnis: Weder GPU-Depth, CPU-Depth noch AR ohne Depth wurde vom Browser als startbare Session akzeptiert.');
     return;
   }
 
@@ -120,7 +128,7 @@ export async function startWebXROnlyApp() {
   } catch (error) {
     const reason = readableXRError(error);
     logMessage(`XR-Session wurde erstellt, aber das Renderer-Setup ist fehlgeschlagen: ${reason}.`);
-    logMessage('Depth API ist in v21 Pflicht. Wenn das Renderer-Setup scheitert, liefert dieser Browser/Gerät keine stabil nutzbare WebXR-Depth-Session.');
+    logMessage('Renderer-Setup fehlgeschlagen. Der gewaehlte AR-Modus kann auf diesem Browser/Geraet nicht stabil gestartet werden.');
     try {
       await session.end();
     } catch (_) {}
@@ -157,6 +165,8 @@ export function resetStartupState() {
   state.gpsSamples = [];
   state.lastCompassTimestamp = 0;
   state.depthFeatureGranted = false;
+  state.depthMode = 'unknown';
+  state.depthAttemptErrors = [];
   state.depthFramesSeen = 0;
   state.cpuDepthFramesSeen = 0;
   state.cpuDepthOccludedObjects = 0;
@@ -175,7 +185,10 @@ export function resetStartupState() {
   clearMetric(dom.poseMetric, 'XR-Pose');
   clearMetric(dom.visibilityMetric, 'Sicht');
   clearMetric(dom.depthMetric, 'Tiefenmaske');
-  setStatus(dom.depthStatus, 'Depth: Pflicht beim Start', 'warn');
+  setCapability('depthGpu', navigator.xr ? 'unknown' : 'unavailable');
+  setCapability('depthCpu', navigator.xr ? 'unknown' : 'unavailable');
+  setCapability('depthOff', navigator.xr ? 'unknown' : 'unavailable');
+  setStatus(dom.depthStatus, 'Depth: Test wartet', 'warn');
   setStatus(dom.gpsStatus, 'GPS: wartet auf Berechtigung', 'warn');
   setStatus(dom.compassStatus, 'Kompass: wartet auf Berechtigung', 'warn');
   setStatus(dom.anchorStatus, 'Anker: wartet', 'warn');
@@ -192,6 +205,7 @@ export async function onXRSessionStarted(session) {
   state.xrSession = session;
   state.xrSupported = true;
   state.starting = false;
+  setCapability('webxr', 'active');
   session.addEventListener('end', onXRSessionEnded, { once: true });
 
   try {
@@ -218,7 +232,7 @@ export async function onXRSessionStarted(session) {
 
   makeXRSessionFeatureListSafe(session);
   const featureInfo = readXRSessionFeatureInfo(session);
-  state.depthFeatureGranted = featureInfo.depthGranted;
+  state.depthFeatureGranted = state.depthMode !== 'off' && (featureInfo.depthGranted || state.depthFeatureGranted);
   logMessage(`XR-Features: ${featureInfo.featuresText}. DepthUsage: ${featureInfo.depthUsage}, DepthFormat: ${featureInfo.depthDataFormat}.`);
   updateDepthStatus(true);
 
@@ -258,6 +272,7 @@ export function onXRSessionEnded() {
   state.xrSession = null;
   state.starting = false;
   state.xrPoseSeen = false;
+  setCapability('webxr', state.xrSupported ? 'available' : 'unavailable');
   state.anchorReady = false;
   state.anchorRequested = false;
   state.towerYaw = null;

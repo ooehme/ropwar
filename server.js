@@ -63,7 +63,7 @@ app.use(express.static(publicDir, {
 }));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, app: 'ropwar', version: 'v21' });
+  res.json({ ok: true, app: 'ropwar', version: 'v22' });
 });
 
 app.use((req, res) => {

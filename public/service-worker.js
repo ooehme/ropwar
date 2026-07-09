@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tower-ar-v21-modules';
+const CACHE_NAME = 'tower-ar-v22-modules';
 const CORE_ASSETS = [
   '/',
   '/index.html',

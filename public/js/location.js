@@ -10,10 +10,11 @@ import { requestElevationForStartLocation } from './elevation.js';
 import { bearingDegrees, distanceBetween, localMetersFromUserToTarget } from './geo.js';
 import { readableGeoError } from './utils/errors.js';
 import { formatMeters } from './utils/math.js';
-import { logMessage, setStatus, updateMetrics } from './ui/status.js';
+import { logMessage, setCapability, setStatus, updateMetrics } from './ui/status.js';
 
 export function startHighAccuracyLocationSampling() {
   if (!navigator.geolocation) {
+    setCapability('gps', 'unavailable');
     setStatus(dom.gpsStatus, 'GPS: Geolocation API fehlt', 'bad');
     logMessage('Keine Geolocation API verfügbar. Ohne echte Geräteposition wird kein Windrad platziert.');
     return;
@@ -21,6 +22,7 @@ export function startHighAccuracyLocationSampling() {
 
   if (state.locating) return;
   state.locating = true;
+  setCapability('gps', 'testing');
   setStatus(dom.gpsStatus, 'GPS: Berechtigung angefragt', 'warn');
   logMessage('Standortberechtigung wurde angefragt. Bitte im Browserdialog erlauben.');
 
@@ -57,6 +59,7 @@ export function startHighAccuracyLocationSampling() {
     setStatus(dom.gpsStatus, `GPS: sammelt Fix ${state.gpsSamples.length}/${GPS_MIN_SAMPLES} (${formatMeters(sample.accuracy)})`, 'warn');
     updateMetrics();
   }, (error) => {
+    setCapability('gps', 'unavailable');
     setStatus(dom.gpsStatus, `GPS: ${readableGeoError(error)}`, 'bad');
     logMessage(`GPS-Fehler: ${readableGeoError(error)}. Es wird keine Ersatzposition verwendet.`);
   }, {
@@ -158,6 +161,7 @@ export function weightedGpsAverage(samples) {
 export function acceptStartLocation(location) {
   if (state.startLocation) return;
   state.startLocation = location;
+  setCapability('gps', 'active');
   stopLocationSampling();
 
   const local = localMetersFromUserToTarget(location.latitude, location.longitude);

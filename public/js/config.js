@@ -1,4 +1,4 @@
-export const APP_VERSION = 21;
+export const APP_VERSION = 22;
 
 export const TARGET = Object.freeze({
   latitude: 50.8323794,

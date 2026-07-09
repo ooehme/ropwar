@@ -6,10 +6,11 @@ import {
 import { dom } from './dom.js';
 import { state } from './state.js';
 import { angleDelta, clamp, degreesToRadians, normalizeDegrees, radiansToDegrees } from './utils/math.js';
-import { logMessage, setStatus, updateMetrics } from './ui/status.js';
+import { logMessage, setCapability, setStatus, updateMetrics } from './ui/status.js';
 
 export function startCompassSampling() {
   if (!('DeviceOrientationEvent' in window)) {
+    setCapability('compass', 'unavailable');
     setStatus(dom.compassStatus, 'Kompass: DeviceOrientation fehlt', 'bad');
     logMessage('Kein DeviceOrientationEvent verfügbar. Ohne Initialkompass kann das geografische Windrad nicht in den XR-Raum gedreht werden.');
     return;
@@ -17,6 +18,7 @@ export function startCompassSampling() {
 
   if (state.compassActive) return;
   state.compassActive = true;
+  setCapability('compass', 'testing');
   window.addEventListener('deviceorientationabsolute', handleDeviceOrientation, true);
   window.addEventListener('deviceorientation', handleDeviceOrientation, true);
   setStatus(dom.compassStatus, 'Kompass: Berechtigung angefragt', 'warn');
@@ -26,12 +28,14 @@ export function startCompassSampling() {
   if (typeof permissionApi === 'function') {
     permissionApi.call(window.DeviceOrientationEvent).then((result) => {
       if (result !== 'granted') {
+        setCapability('compass', 'unavailable');
         setStatus(dom.compassStatus, 'Kompass: Zugriff abgelehnt', 'bad');
         logMessage('Bewegungs-/Ausrichtungszugriff wurde abgelehnt. Ohne Initialkompass wird kein geografischer XR-Anker gesetzt.');
       } else {
         setStatus(dom.compassStatus, 'Kompass: wartet auf Messwert', 'warn');
       }
     }).catch((error) => {
+      setCapability('compass', 'unavailable');
       setStatus(dom.compassStatus, 'Kompass: Berechtigung fehlgeschlagen', 'bad');
       logMessage(`Kompassberechtigung fehlgeschlagen: ${error.message}`);
     });
@@ -42,6 +46,7 @@ export function startCompassSampling() {
 
   state.compassTimeoutId = window.setTimeout(() => {
     if (state.startHeading == null) {
+      setCapability('compass', 'unavailable');
       setStatus(dom.compassStatus, 'Kompass: keine absolute Richtung', 'bad');
       logMessage('Kein verwertbarer Kompasswert empfangen. Prüfe Browser, Sensorberechtigungen, Standortdienste und Magnetometer. Windrad bleibt ausgeblendet.');
     }
@@ -71,6 +76,7 @@ export function handleDeviceOrientation(event) {
   state.lastCompassTimestamp = now;
 
   setStatus(dom.compassStatus, `Kompass: ${Math.round(filtered)}° (${reading.source})`, reading.warning ? 'warn' : 'ok');
+  setCapability('compass', reading.warning ? 'available' : 'active');
   updateMetrics();
 }
 

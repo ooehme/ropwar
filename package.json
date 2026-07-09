@@ -1,6 +1,6 @@
 {
   "name": "ropwar",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Mobile browser AR view for a 250 m wind turbine at a fixed GPS position.",
   "private": true,
   "license": "UNLICENSED",
