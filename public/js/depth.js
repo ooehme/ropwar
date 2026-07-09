@@ -134,9 +134,17 @@ export async function requestDepthSessionWithRetries() {
     try {
       updateDepthCapabilityTesting(attempt.depthMode);
       logMessage(`XR-Session-Versuch: ${attempt.label}.`);
+
+      logMessage(
+        attempt.sessionInit
+          ? `requestSession mit Optionen: ${attempt.label}`
+          : `requestSession ohne Optionen: ${attempt.label}`
+      );
+
       const session = attempt.sessionInit
         ? await navigator.xr.requestSession('immersive-ar', attempt.sessionInit)
         : await navigator.xr.requestSession('immersive-ar');
+
       applyDepthAttemptSuccess(attempt.depthMode);
       return { session, attempt };
     } catch (error) {
