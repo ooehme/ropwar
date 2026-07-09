@@ -31,7 +31,7 @@ Wenn keine Konfiguration startet, wird AR nicht gestartet und die App meldet ein
 - `public/js/`: getrennte Browser-Module für WebXR, Depth, GPS, Kompass, Szene, UI und Utilities
 - `public/icons/`: PWA-Icons
 
-Three.js wird nicht mehr als große Datei committed. Die Routen `/vendor/three.module.js` und `/vendor/three.core.js` liefern die Dateien aus `node_modules/three/build`. Deshalb ist `npm install` vor dem Start erforderlich.
+Three.js liegt als minifizierter Vendor-Build in `public/vendor/`. Die Kompatibilitätsrouten `/vendor/three.module.js` und `/vendor/three.core.js` zeigen serverseitig auf diese minifizierten Dateien.
 
 ## 3D-Modell
 
@@ -66,8 +66,8 @@ Diese URLs müssen JavaScript/JSON liefern:
 - `/health`
 - `/app.js`
 - `/js/main.js`
-- `/vendor/three.module.js`
-- `/vendor/three.core.js`
+- `/vendor/three.module.min.js`
+- `/vendor/three.core.min.js`
 
 ## Handy-Test
 

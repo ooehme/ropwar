@@ -5,8 +5,8 @@ const CORE_ASSETS = [
   '/styles.css',
   '/manifest.json',
   '/app.js',
-  '/vendor/three.module.js',
-  '/vendor/three.core.js',
+  '/vendor/three.module.min.js',
+  '/vendor/three.core.min.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png'

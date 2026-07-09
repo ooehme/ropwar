@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
-const threeBuildDir = path.join(__dirname, 'node_modules', 'three', 'build');
+const vendorDir = path.join(publicDir, 'vendor');
 
 app.disable('x-powered-by');
 
@@ -38,23 +38,23 @@ app.get('/service-worker.js', (req, res) => {
   res.sendFile(path.join(publicDir, 'service-worker.js'));
 });
 
-function sendThreeBuildFile(res, fileName) {
+function sendVendorFile(res, fileName) {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');
-  res.sendFile(path.join(threeBuildDir, fileName), (error) => {
+  res.sendFile(path.join(vendorDir, fileName), (error) => {
     if (!error) return;
     if (!res.headersSent) {
-      res.status(404).type('text/plain').send(`node_modules/three/build/${fileName} fehlt. Bitte npm install ausfuehren.`);
+      res.status(404).type('text/plain').send(`public/vendor/${fileName} fehlt im Deployment.`);
     }
   });
 }
 
 app.get(['/three.module.js', '/vendor/three.module.js'], (req, res) => {
-  sendThreeBuildFile(res, 'three.module.js');
+  sendVendorFile(res, 'three.module.min.js');
 });
 
 app.get(['/three.core.js', '/vendor/three.core.js'], (req, res) => {
-  sendThreeBuildFile(res, 'three.core.js');
+  sendVendorFile(res, 'three.core.min.js');
 });
 
 app.use(express.static(publicDir, {

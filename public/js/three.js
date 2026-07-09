@@ -10,7 +10,7 @@ export async function ensureThreeInitialized() {
   if (state.renderer && state.scene && state.camera && state.tower && hasThreeModule()) return;
 
   setStatus(dom.xrStatus, 'WebXR: lade Three.js', 'warn');
-  logMessage('Lade lokal installiertes 3D-Modul ueber /vendor/three.module.js. DOM-Overlay ist auf #hud begrenzt, damit der Body die Kamera nicht verdeckt.');
+  logMessage('Lade mitgeliefertes 3D-Modul ueber /vendor/three.module.min.js. DOM-Overlay ist auf #hud begrenzt, damit der Body die Kamera nicht verdeckt.');
 
   setThreeModule(await loadThreeModule());
 
@@ -29,7 +29,7 @@ export async function loadThreeModule() {
     logMessage('3D-Modul erfolgreich geladen: ' + THREE_MODULE_URL);
     return module;
   } catch (error) {
-    throw new Error('Three.js konnte nicht geladen werden. ' + (error?.message || error) + '. Pruefe im Browser direkt: /vendor/three.module.js muss JavaScript-Text liefern, nicht HTML/404.');
+    throw new Error('Three.js konnte nicht geladen werden. ' + (error?.message || error) + '. Pruefe im Browser direkt: /vendor/three.module.min.js muss JavaScript-Text liefern, nicht HTML/404.');
   }
 }
 

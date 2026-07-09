@@ -21,4 +21,4 @@ export const COMPASS_SAMPLE_TIMEOUT_MS = 12000;
 export const COMPASS_MAX_RATE_DEGREES_PER_SECOND = 240;
 export const COMPASS_ALPHA = 0.18;
 export const XR_SUPPORT_CHECK_TIMEOUT_MS = 6000;
-export const THREE_MODULE_URL = '/vendor/three.module.js?v=20';
+export const THREE_MODULE_URL = '/vendor/three.module.min.js?v=20';
