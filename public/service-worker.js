@@ -1,11 +1,10 @@
-const CACHE_NAME = 'tower-ar-v20';
+const CACHE_NAME = 'tower-ar-v20-modules';
 const CORE_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
   '/manifest.json',
-  '/three.module.js',
-  '/three.core.js',
+  '/app.js',
   '/vendor/three.module.js',
   '/vendor/three.core.js',
   '/icons/icon.svg',
@@ -33,7 +32,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  if (url.pathname === '/app.js' || url.pathname === '/service-worker.js' || url.pathname === '/vendor/three.module.js' || url.pathname === '/vendor/three.core.js' || url.pathname === '/three.module.js' || url.pathname === '/three.core.js') {
+  if (url.pathname === '/app.js' || url.pathname.startsWith('/js/') || url.pathname === '/service-worker.js' || url.pathname.startsWith('/vendor/')) {
     event.respondWith(fetch(event.request));
     return;
   }

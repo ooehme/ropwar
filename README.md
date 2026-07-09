@@ -21,6 +21,16 @@ Wenn GPU-Depth geliefert wird, nutzt Three.js die GPU-Occlusion. Wenn nur CPU-De
 
 Wenn keine Konfiguration startet, wird AR nicht gestartet und die App meldet eindeutig, dass keine startbare Depth-Session verfügbar ist.
 
+## Projektstruktur
+
+- `server.js`: Express-App, Security-Header, Static Hosting und Three.js-Vendor-Routen
+- `public/index.html`: HTML-Shell und Bootstrapping
+- `public/app.js`: stabiler Browser-Entry-Point
+- `public/js/`: getrennte Browser-Module für WebXR, Depth, GPS, Kompass, Szene, UI und Utilities
+- `public/icons/`: PWA-Icons
+
+Three.js wird nicht mehr als große Datei committed. Die Routen `/vendor/three.module.js` und `/vendor/three.core.js` liefern die Dateien aus `node_modules/three/build`. Deshalb ist `npm install` vor dem Start erforderlich.
+
 ## Plesk-Setup
 
 1. ZIP entpacken und den kompletten Ordnerinhalt in den Plesk-Anwendungsstamm hochladen.
@@ -38,8 +48,7 @@ Diese URLs müssen JavaScript/JSON liefern:
 
 - `/health`
 - `/app.js`
-- `/three.module.js`
-- `/three.core.js`
+- `/js/main.js`
 - `/vendor/three.module.js`
 - `/vendor/three.core.js`
 

@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 const publicDir = path.join(__dirname, 'public');
-const vendorDir = path.join(publicDir, 'vendor');
+const threeBuildDir = path.join(__dirname, 'node_modules', 'three', 'build');
 
 app.disable('x-powered-by');
 
@@ -38,50 +38,23 @@ app.get('/service-worker.js', (req, res) => {
   res.sendFile(path.join(publicDir, 'service-worker.js'));
 });
 
-
-app.get('/three.module.js', (req, res) => {
+function sendThreeBuildFile(res, fileName) {
   res.setHeader('Cache-Control', 'no-store');
   res.type('application/javascript');
-  res.sendFile(path.join(publicDir, 'three.module.js'), (error) => {
+  res.sendFile(path.join(threeBuildDir, fileName), (error) => {
     if (!error) return;
     if (!res.headersSent) {
-      res.status(404).type('text/plain').send('public/three.module.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
+      res.status(404).type('text/plain').send(`node_modules/three/build/${fileName} fehlt. Bitte npm install ausfuehren.`);
     }
   });
+}
+
+app.get(['/three.module.js', '/vendor/three.module.js'], (req, res) => {
+  sendThreeBuildFile(res, 'three.module.js');
 });
 
-app.get('/vendor/three.module.js', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  res.sendFile(path.join(vendorDir, 'three.module.js'), (error) => {
-    if (!error) return;
-    if (!res.headersSent) {
-      res.status(404).type('text/plain').send('public/vendor/three.module.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
-    }
-  });
-});
-
-
-app.get('/three.core.js', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  res.sendFile(path.join(publicDir, 'three.core.js'), (error) => {
-    if (!error) return;
-    if (!res.headersSent) {
-      res.status(404).type('text/plain').send('public/three.core.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
-    }
-  });
-});
-
-app.get('/vendor/three.core.js', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.type('application/javascript');
-  res.sendFile(path.join(vendorDir, 'three.core.js'), (error) => {
-    if (!error) return;
-    if (!res.headersSent) {
-      res.status(404).type('text/plain').send('public/vendor/three.core.js fehlt im Upload. Bitte das ZIP vollständig hochladen.');
-    }
-  });
+app.get(['/three.core.js', '/vendor/three.core.js'], (req, res) => {
+  sendThreeBuildFile(res, 'three.core.js');
 });
 
 app.use(express.static(publicDir, {
@@ -90,7 +63,7 @@ app.use(express.static(publicDir, {
 }));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, app: 'tower-ar-plesk-app', version: 'v17' });
+  res.json({ ok: true, app: 'ropwar', version: 'v20' });
 });
 
 app.use((req, res) => {

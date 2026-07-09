@@ -8,7 +8,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/service-worker.js",
+    "check": "node scripts/check-syntax.mjs",
     "test": "npm run check"
   },
   "repository": {
