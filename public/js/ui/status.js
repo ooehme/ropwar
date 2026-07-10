@@ -40,7 +40,7 @@ export function markClientBooted() {
     if (pref === '1') setUiHidden(true);
   } catch (_) {}
   updateCapabilityIcons();
-  logMessage(`App-JavaScript v22 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
+  logMessage(`App-JavaScript v23 geladen · ${secureInfo} · ${xrInfo} · ${navigator.userAgent}`);
 }
 
 export function updateMetrics() {

@@ -1,6 +1,6 @@
 {
   "name": "ropwar",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Mobile browser AR view for a 250 m wind turbine at a fixed GPS position.",
   "private": true,
   "license": "UNLICENSED",
@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/check-syntax.mjs",
-    "test": "npm run check"
+    "test": "npm run check && node --test scripts/xr-session.test.mjs"
   },
   "repository": {
     "type": "git",

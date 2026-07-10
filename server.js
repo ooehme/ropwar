@@ -57,13 +57,19 @@ app.get(['/three.core.js', '/vendor/three.core.js'], (req, res) => {
   sendVendorFile(res, 'three.core.min.js');
 });
 
+app.use('/js', express.static(path.join(publicDir, 'js'), {
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+}));
+
 app.use(express.static(publicDir, {
   extensions: ['html'],
   maxAge: process.env.NODE_ENV === 'production' ? '1h' : 0
 }));
 
 app.get('/health', (req, res) => {
-  res.json({ ok: true, app: 'ropwar', version: 'v22' });
+  res.json({ ok: true, app: 'ropwar', version: 'v23' });
 });
 
 app.use((req, res) => {

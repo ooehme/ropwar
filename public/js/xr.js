@@ -11,7 +11,7 @@ import { startCompassSampling, stopCompassSampling } from './compass.js';
 import {
   makeXRSessionFeatureListSafe,
   readXRSessionFeatureInfo,
-  requestDepthSessionWithRetries,
+  requestAdaptiveXRSession,
   restoreCpuDepthOcclusionObjects,
   updateCpuDepthOcclusion,
   updateDepthStatus
@@ -26,38 +26,52 @@ export async function checkWebXRSupport() {
   dom.startButton.disabled = false;
 
   if (!window.isSecureContext) {
+    state.xrSupported = false;
     setCapability('webxr', 'unavailable');
     setStatus(dom.xrStatus, 'WebXR: HTTPS erforderlich', 'bad');
     logMessage('WebXR AR benötigt HTTPS. Der Startknopf bleibt aktiv, zeigt beim Start aber denselben Fehler.');
     return;
   }
 
-  if (!navigator.xr?.isSessionSupported) {
+  if (!navigator.xr?.requestSession) {
+    state.xrSupported = false;
     setCapability('webxr', 'unavailable');
     setStatus(dom.xrStatus, 'WebXR: API fehlt', 'bad');
     logMessage('Dieser Browser stellt navigator.xr nicht bereit. Es gibt keinen Fallback-Modus. Auf Android zuerst Chrome testen.');
     return;
   }
 
+  if (!navigator.xr.isSessionSupported) {
+    state.xrSupported = null;
+    setCapability('webxr', 'unknown');
+    setStatus(dom.xrStatus, 'WebXR: Vorprüfung nicht verfügbar', 'warn');
+    logMessage('Dieser Browser hat keine WebXR-Vorprüfung. Der direkte immersive-ar-Start bleibt verfügbar.');
+    return;
+  }
+
   try {
     setCapability('webxr', 'testing');
     setStatus(dom.xrStatus, 'WebXR: Vorprüfung läuft', 'warn');
-    state.xrSupported = await withTimeout(
+    const supported = await withTimeout(
       navigator.xr.isSessionSupported('immersive-ar'),
       XR_SUPPORT_CHECK_TIMEOUT_MS,
       'WebXR-Vorprüfung dauert zu lange'
     );
 
-    if (state.xrSupported) {
+    if (state.starting || state.xrSession) return;
+    state.xrSupported = supported;
+
+    if (supported) {
       setCapability('webxr', 'available');
       setStatus(dom.xrStatus, 'WebXR: immersive-ar verfügbar', 'ok');
       logMessage('WebXR immersive-ar ist laut Vorprüfung verfügbar. Berechtigungen werden erst nach Klick auf „AR starten“ angefragt.');
     } else {
       setCapability('webxr', 'unavailable');
-      setStatus(dom.xrStatus, 'WebXR: immersive-ar nicht verfügbar', 'bad');
-      logMessage('Dieses Gerät meldet keine WebXR-AR-Unterstützung. Die App startet ohne Fallback nicht.');
+      setStatus(dom.xrStatus, 'WebXR: Vorprüfung meldet nicht verfügbar', 'warn');
+      logMessage('Die unverbindliche Vorprüfung meldet keine AR-Unterstützung. Beim Klick wird immersive-ar trotzdem direkt angefragt.');
     }
   } catch (error) {
+    if (state.starting || state.xrSession) return;
     state.xrSupported = null;
     setCapability('webxr', 'unknown');
     setStatus(dom.xrStatus, 'WebXR: Vorprüfung unklar', 'warn');
@@ -84,57 +98,55 @@ export async function startWebXROnlyApp() {
     return;
   }
 
-  if (state.xrSupported === false) {
-  failStartup(
-    'WebXR: immersive-ar nicht verfügbar',
-    'Dieses Gerät oder dieser Browser meldet keine immersive-ar-Unterstützung. Depth ist nicht die Ursache; selbst eine minimale AR-Session kann nicht gestartet werden.'
-  );
-  return;
-}
-
-  // Wichtig: Diese Aufrufe passieren synchron im Button-Klick, bevor das erste await kommt.
-  // Browser dürfen WebXR- und Sensor-Prompts sonst wegen fehlender Nutzeraktivierung blockieren.
-  
+  // Der einzige immersive Request wird direkt aus dem Klick heraus gestartet.
+  // Serielle Probe-Sessions verlieren nach dem ersten await die Nutzeraktivierung.
   state.depthRequestEnabled = false;
   state.depthOcclusionEnabled = false;
   state.depthSessionRequested = false;
   state.depthFeatureGranted = false;
   state.depthMode = 'unknown';
-  state.referenceSpaceType = 'local-floor';
-  setStatus(dom.depthStatus, 'Depth: teste GPU', 'warn');
+  state.referenceSpaceType = 'local';
+  setStatus(dom.depthStatus, 'Depth: Startmodus wird gewählt', 'warn');
   if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: GPU -> CPU -> aus';
-  logMessage('Depth-Capability-Test startet in der Reihenfolge GPU, CPU, aus. Wenn Depth fehlt, startet AR ohne Tiefenmaske.');
+  setCapability('webxr', 'testing');
 
   let session = null;
-  let selectedAttempt = null;
 
   try {
     setStatus(dom.xrStatus, 'WebXR: Session-Prompt angefordert', 'warn');
-    const result = await requestDepthSessionWithRetries();
+    const result = await requestAdaptiveXRSession();
     session = result.session;
-    selectedAttempt = result.attempt;
-    state.referenceSpaceType = selectedAttempt.referenceSpaceType;
-    state.depthMode = selectedAttempt.depthMode || 'unknown';
-    logMessage(`WebXR-Session erstellt: ${selectedAttempt.label}. Referenzraum: ${state.referenceSpaceType}.`);
+    state.referenceSpaceType = result.referenceSpaceType;
+    state.depthMode = result.depthMode;
+    logMessage(`WebXR-Session erstellt. Depth-Modus: ${state.depthMode}. Referenzraum: ${state.referenceSpaceType}.`);
 
     startHighAccuracyLocationSampling();
     startCompassSampling();
   } catch (error) {
+    if (session) {
+      try { await session.end(); } catch (_) {}
+    }
     stopLocationSampling();
     stopCompassSampling();
     dom.startButton.disabled = false;
     state.starting = false;
+    setCapability('webxr', 'unknown');
     setStatus(dom.xrStatus, 'WebXR: Start fehlgeschlagen', 'bad');
-    setStatus(dom.depthStatus, 'Depth: kein AR-Start', 'bad');
-    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: keine startbare AR-Session';
+    setStatus(dom.depthStatus, 'Depth: nicht ermittelt', 'warn');
+    if (dom.depthMetric) dom.depthMetric.textContent = 'Tiefenmaske: Session nicht gestartet';
     logMessage(`AR-Session konnte nicht erstellt werden: ${readableXRError(error)}`);
-    logMessage('Ergebnis: Weder GPU-Depth, CPU-Depth noch AR ohne Depth wurde vom Browser als startbare Session akzeptiert.');
+    logMessage('Depth war nicht erforderlich und hat den Basismodus nicht blockiert. Der immersive-ar-Request selbst wurde abgelehnt.');
+    if (state.forceMinimalXR) {
+      dom.startButton.textContent = 'Basis-AR starten';
+      logMessage('Der nächste Klick startet exakt requestSession(\'immersive-ar\') ohne Optionen.');
+    }
     return;
   }
 
   try {
     await onXRSessionStarted(session);
   } catch (error) {
+    if (state.xrSession !== session) return;
     const reason = readableXRError(error);
     logMessage(`XR-Session wurde erstellt, aber das Renderer-Setup ist fehlgeschlagen: ${reason}.`);
     logMessage('Renderer-Setup fehlgeschlagen. Der gewaehlte AR-Modus kann auf diesem Browser/Geraet nicht stabil gestartet werden.');
@@ -175,6 +187,7 @@ export function resetStartupState() {
   state.lastCompassTimestamp = 0;
   state.depthFeatureGranted = false;
   state.depthMode = 'unknown';
+  state.referenceSpaceType = 'local';
   state.depthAttemptErrors = [];
   state.depthFramesSeen = 0;
   state.cpuDepthFramesSeen = 0;
@@ -215,7 +228,7 @@ export async function onXRSessionStarted(session) {
   state.xrSupported = true;
   state.starting = false;
   setCapability('webxr', 'active');
-  session.addEventListener('end', onXRSessionEnded, { once: true });
+  session.addEventListener('end', () => onXRSessionEnded(session), { once: true });
 
   try {
     await ensureThreeInitialized();
@@ -227,10 +240,7 @@ export async function onXRSessionStarted(session) {
     return;
   }
 
-  document.documentElement.classList.add('xr-active');
-  document.body.classList.add('xr-active');
-  dom.app?.classList.add('xr-active');
-  dom.canvas?.classList.add('xr-active');
+  if (state.xrSession !== session) return;
 
   const blendMode = session.environmentBlendMode || 'unbekannt';
   logMessage(`XR-Umgebungsmodus: ${blendMode}. Für Kamera-Passthrough wird normalerweise alpha-blend erwartet.`);
@@ -245,6 +255,21 @@ export async function onXRSessionStarted(session) {
   logMessage(`XR-Features: ${featureInfo.featuresText}. DepthUsage: ${featureInfo.depthUsage}, DepthFormat: ${featureInfo.depthDataFormat}.`);
   updateDepthStatus(true);
 
+  state.renderer.xr.enabled = true;
+  state.renderer.xr.setReferenceSpaceType(state.referenceSpaceType || 'local');
+  try {
+    session.updateRenderState({ depthNear: 0.05, depthFar: 100000 });
+  } catch (error) {
+    logMessage(`XR RenderState depthNear/depthFar konnte nicht gesetzt werden: ${error?.name || error}. Weiter mit Browser-Standard.`);
+  }
+  logMessage('Three.js XR-Renderer wird an die aktive XRSession gebunden.');
+  await state.renderer.xr.setSession(session);
+  if (state.xrSession !== session) return;
+
+  document.documentElement.classList.add('xr-active');
+  document.body.classList.add('xr-active');
+  dom.app?.classList.add('xr-active');
+  dom.canvas?.classList.add('xr-active');
   updateStopButtons(true);
   dom.resetAnchorButton.disabled = true;
   dom.calibrateAnchorButton.disabled = true;
@@ -253,22 +278,13 @@ export async function onXRSessionStarted(session) {
   dom.testMarkerButton.disabled = false;
   setStatus(dom.xrStatus, 'WebXR: SLAM/VIO aktiv', 'ok');
   setStatus(dom.anchorStatus, 'Anker: wartet auf GPS + Kompass + XR-Pose', 'warn');
-
-  state.renderer.xr.enabled = true;
-  state.renderer.xr.setReferenceSpaceType(state.referenceSpaceType || 'local-floor');
-  try {
-    session.updateRenderState({ depthNear: 0.05, depthFar: 100000 });
-  } catch (error) {
-    logMessage(`XR RenderState depthNear/depthFar konnte nicht gesetzt werden: ${error?.name || error}. Weiter mit Browser-Standard.`);
-  }
-  logMessage('Three.js XR-Renderer wird an die aktive XRSession gebunden.');
-  await state.renderer.xr.setSession(session);
   state.renderer.setAnimationLoop(renderXRFrame);
 
   logMessage('WebXR-Session läuft. Jetzt werden GPS-Fix, Initialkompass und erste XR-Pose zusammengeführt.');
 }
 
-export function onXRSessionEnded() {
+export function onXRSessionEnded(endedSession) {
+  if (endedSession && state.xrSession !== endedSession) return;
   logMessage('WebXR-Session wurde beendet. Die Kamera ist danach nicht mehr sichtbar; sichtbar ist nur die normale Webseite.');
   stopLocationSampling();
   stopCompassSampling();

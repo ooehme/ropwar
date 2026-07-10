@@ -9,7 +9,7 @@ export const state = {
   testMarker: null,
   originalGetDepthSensingMesh: null,
   xrSession: null,
-  xrSupported: false,
+  xrSupported: null,
   xrPoseSeen: false,
   starting: false,
   locating: false,
@@ -41,6 +41,7 @@ export const state = {
   depthSessionRequested: false,
   depthFeatureGranted: false,
   depthMode: 'unknown',
+  forceMinimalXR: false,
   depthAttemptErrors: [],
   depthFramesSeen: 0,
   cpuDepthFramesSeen: 0,
@@ -56,5 +57,5 @@ export const state = {
     depthCpu: 'unknown',
     depthOff: 'unknown'
   },
-  referenceSpaceType: 'local-floor'
+  referenceSpaceType: 'local'
 };

@@ -1,5 +1,5 @@
 import { calibrateAnchorToCurrentView, placeTestMarkerInFront, resetAnchor, rotateTowerAnchor } from './anchor.js';
-import { setDepthAlwaysOn } from './depth.js';
+import { initializeDepthStatus } from './depth.js';
 import { dom } from './dom.js';
 import { clearPwaCaches, registerServiceWorker } from './pwa.js';
 import { bindDiagnostics, markClientBooted, resize, setUiHidden } from './ui/status.js';
@@ -10,7 +10,7 @@ bindDiagnostics();
 markClientBooted();
 registerServiceWorker();
 checkWebXRSupport();
-setDepthAlwaysOn();
+initializeDepthStatus();
 resize();
 
 function bindUi() {

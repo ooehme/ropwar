@@ -1,4 +1,4 @@
-# Windrad XR v22 - adaptiver WebXR-Depth-Start
+# Windrad XR v23 - robuster WebXR-Basisstart
 
 Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 
@@ -8,11 +8,15 @@ Mobile WebXR-App für eine virtuelle 250-m-Windkraftanlage am realen Standort:
 - Nabenhöhe: `165 m`
 - Rotordurchmesser: `170 m`
 
-Diese Version nutzt WebXR `immersive-ar`, GPS und Initialkompass. WebXR Depth wird beim Start adaptiv getestet: GPU, dann CPU, dann AR ohne Depth.
+Diese Version nutzt WebXR `immersive-ar`, GPS und Initialkompass. Bei positiver Vorprüfung wird WebXR Depth in demselben Session-Request optional ausgehandelt; andernfalls startet direkt die nackte AR-Basissession.
+
+## Änderung in v23
+
+Die Capability-Vorprüfung ist nur noch eine Statusanzeige und blockiert `requestSession()` auch bei einem negativen, fehlenden oder verspäteten Ergebnis nicht. Pro Klick gibt es genau einen `immersive-ar`-Request. Bei unklarer oder negativer Vorprüfung wird exakt `requestSession('immersive-ar')` ohne Optionen verwendet. Nach positiver Vorprüfung sind DOM-Overlay und Depth optional; der immersive Referenzraum `local` bleibt der Basismodus. Dadurch kann fehlendes Depth die Nutzeraktivierung nicht mehr vor dem No-Depth-Start verbrauchen.
 
 ## Änderung in v22
 
-Depth blockiert den AR-Start nicht mehr. Die App versucht zuerst GPU-Depth, danach CPU-Depth und startet zuletzt ohne Depth, wenn keine Tiefenmaske verfügbar ist. Die Capability-Leiste zeigt XR, GPS, Kompass, GPU-Depth, CPU-Depth und OFF als aktive, verfügbare oder ausgegraute Symbole.
+v22 führte die Capability-Leiste für XR, GPS, Kompass, GPU-Depth, CPU-Depth und OFF ein.
 
 ## Änderung in v21
 
@@ -81,11 +85,11 @@ Diese URLs müssen JavaScript/JSON liefern:
 
 ## Handy-Test
 
-1. Öffnen mit `https://deine-domain/?v=22`
+1. Öffnen mit `https://deine-domain/?v=23`
 2. **XR-Anker → Cache zurücksetzen**
 3. neu laden
 4. AR starten
-5. Im Log auf `XR-Session-Versuch`, `XR-Features`, `DepthUsage` und `Tiefenmaske` achten
+5. Im Log auf genau einen `WebXR-Session-Request`, `XR-Features`, `DepthUsage` und `Tiefenmaske` achten
 
 ## Einschränkung
 

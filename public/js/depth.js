@@ -3,6 +3,12 @@ import { state } from './state.js';
 import { getThree } from './three-context.js';
 import { clamp } from './utils/math.js';
 import { logMessage, setCapability, setStatus } from './ui/status.js';
+import {
+  detectDepthMode,
+  requestXRSession,
+  shouldFallbackToMinimalXR,
+  shouldUseMinimalXRSession
+} from './xr-session.js';
 
 const CPU_OCCLUSION_MARGIN_METERS = 0.35;
 const CPU_OCCLUSION_MAX_REAL_DEPTH_METERS = 35;
@@ -10,7 +16,7 @@ const CPU_HIDE_SCORE_THRESHOLD = 3;
 const CPU_HIDE_SCORE_MAX = 6;
 const CPU_SHOW_SCORE_DROP = 2;
 
-export function setDepthAlwaysOn() {
+export function initializeDepthStatus() {
   state.depthRequestEnabled = false;
   state.depthOcclusionEnabled = false;
   state.depthSessionRequested = false;
@@ -53,134 +59,49 @@ export function patchDepthOcclusionToggle() {
   // Three.js bekommt Depth nur, wenn die Session GPU-Depth geliefert hat.
 }
 
-export function buildDepthSessionAttempts() {
-  const overlayRoot = dom.overlayRoot || dom.hud;
-  const baseOverlay = { root: overlayRoot };
-  const depthAttempt = (label, depthMode, referenceSpaceType, usagePreference, dataFormatPreference) => ({
-    label,
-    depthMode,
-    referenceSpaceType,
-    sessionInit: {
-      requiredFeatures: [referenceSpaceType, 'depth-sensing'],
-      optionalFeatures: ['dom-overlay'],
-      depthSensing: {
-        usagePreference,
-        dataFormatPreference
-      },
-      domOverlay: baseOverlay
-    }
-  });
-  const offAttempt = (label, referenceSpaceType) => ({
-    label,
-    depthMode: 'off',
-    referenceSpaceType,
-    sessionInit: {
-      requiredFeatures: [referenceSpaceType],
-      optionalFeatures: ['dom-overlay'],
-      domOverlay: baseOverlay
-    }
-  });
+export async function requestAdaptiveXRSession() {
+  state.depthAttemptErrors = [];
+  const minimalOnly = shouldUseMinimalXRSession(state.xrSupported, state.forceMinimalXR);
 
-  const bareOffAttempt = () => ({
-    label: 'minimal - Depth aus - keine Zusatzfeatures',
-    depthMode: 'off',
-    referenceSpaceType: 'local',
-    sessionInit: undefined
-  });
-
-  return [
-    depthAttempt(
-      'local-floor - GPU Depth - luminance-alpha/float32',
-      'gpu',
-      'local-floor',
-      ['gpu-optimized'],
-      ['luminance-alpha', 'float32']
-    ),
-    depthAttempt(
-      'local - GPU Depth - luminance-alpha/float32',
-      'gpu',
-      'local',
-      ['gpu-optimized'],
-      ['luminance-alpha', 'float32']
-    ),
-    depthAttempt(
-      'local-floor - CPU Depth - float32/luminance-alpha',
-      'cpu',
-      'local-floor',
-      ['cpu-optimized'],
-      ['float32', 'luminance-alpha']
-    ),
-    depthAttempt(
-      'local - CPU Depth - float32/luminance-alpha',
-      'cpu',
-      'local',
-      ['cpu-optimized'],
-      ['float32', 'luminance-alpha']
-    ),
-    offAttempt('local-floor - Depth aus', 'local-floor'),
-    offAttempt('local - Depth aus', 'local'),
-    bareOffAttempt()
-  ];
-}
-
-export async function requestDepthSessionWithRetries() {
-  const errors = [];
-  state.depthAttemptErrors = errors;
-  setCapability('depthGpu', 'testing');
-  setCapability('depthCpu', 'unknown');
-  setCapability('depthOff', 'unknown');
-
-  for (const attempt of buildDepthSessionAttempts()) {
-    try {
-      updateDepthCapabilityTesting(attempt.depthMode);
-      logMessage(`XR-Session-Versuch: ${attempt.label}.`);
-
-      logMessage(
-        attempt.sessionInit
-          ? `requestSession mit Optionen: ${attempt.label}`
-          : `requestSession ohne Optionen: ${attempt.label}`
-      );
-
-      const session = attempt.sessionInit
-        ? await navigator.xr.requestSession('immersive-ar', attempt.sessionInit)
-        : await navigator.xr.requestSession('immersive-ar');
-
-      applyDepthAttemptSuccess(attempt.depthMode);
-      return { session, attempt };
-    } catch (error) {
-      const detail = `${attempt.label}: ${error?.name || 'Fehler'} - ${error?.message || error}`;
-      errors.push(detail);
-      logMessage(`XR-Session-Versuch fehlgeschlagen: ${detail}`);
-      if (isFatalSessionError(error)) {
-        applyDepthAttemptFailure();
-        throw error;
-      }
-    }
-  }
-
-  applyDepthAttemptFailure();
-  const startupError = new Error(`Keine AR-Konfiguration wurde akzeptiert. ${errors.join(' | ')}`);
-  startupError.name = 'DepthSessionNotSupportedError';
-  throw startupError;
-}
-
-function updateDepthCapabilityTesting(depthMode) {
-  if (depthMode === 'gpu') {
-    setCapability('depthGpu', 'testing');
-    setCapability('depthCpu', 'unknown');
-    setCapability('depthOff', 'unknown');
-  } else if (depthMode === 'cpu') {
-    setCapability('depthGpu', 'unavailable');
-    setCapability('depthCpu', 'testing');
-    setCapability('depthOff', 'unknown');
-  } else {
+  if (minimalOnly) {
     setCapability('depthGpu', 'unavailable');
     setCapability('depthCpu', 'unavailable');
     setCapability('depthOff', 'testing');
+    logMessage('Die nackte immersive-ar-Basissession wird ohne Zusatzfeatures angefragt.');
+  } else {
+    setCapability('depthGpu', 'testing');
+    setCapability('depthCpu', 'testing');
+    setCapability('depthOff', 'available');
+    logMessage('Ein WebXR-Session-Request wird gestartet. GPU-/CPU-Depth ist optional; ohne Depth bleibt immersive-ar startbar.');
+  }
+
+  let session = null;
+  try {
+    session = await requestXRSession(navigator.xr, dom.overlayRoot || dom.hud, minimalOnly);
+  } catch (error) {
+    const detail = `${error?.name || 'Fehler'} - ${error?.message || error}`;
+    state.depthAttemptErrors = [detail];
+    if (!minimalOnly && shouldFallbackToMinimalXR(error)) {
+      state.forceMinimalXR = true;
+      logMessage('Der Options-Request ist nicht kompatibel. Der nächste Klick verwendet ausschließlich die nackte immersive-ar-Basissession.');
+    }
+    applyDepthSessionFailure();
+    logMessage(`XR-Session-Request fehlgeschlagen: ${detail}`);
+    throw error;
+  }
+
+  const depthMode = minimalOnly ? 'off' : detectDepthMode(session);
+  try {
+    applyDepthSessionSuccess(depthMode);
+    return { session, depthMode, referenceSpaceType: 'local', minimalOnly };
+  } catch (error) {
+    try { await session.end(); } catch (_) {}
+    applyDepthSessionFailure();
+    throw error;
   }
 }
 
-function applyDepthAttemptSuccess(depthMode) {
+function applyDepthSessionSuccess(depthMode) {
   state.depthMode = depthMode;
   state.depthRequestEnabled = depthMode !== 'off';
   state.depthOcclusionEnabled = depthMode !== 'off';
@@ -202,7 +123,7 @@ function applyDepthAttemptSuccess(depthMode) {
   }
 }
 
-function applyDepthAttemptFailure() {
+function applyDepthSessionFailure() {
   state.depthMode = 'unknown';
   state.depthRequestEnabled = false;
   state.depthOcclusionEnabled = false;
@@ -211,10 +132,6 @@ function applyDepthAttemptFailure() {
   setCapability('depthGpu', 'unavailable');
   setCapability('depthCpu', 'unavailable');
   setCapability('depthOff', 'unavailable');
-}
-
-function isFatalSessionError(error) {
-  return ['NotAllowedError', 'SecurityError', 'InvalidStateError'].includes(error?.name);
 }
 
 export function makeXRSessionFeatureListSafe(session) {
